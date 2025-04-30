@@ -198,6 +198,13 @@ def main(
     proteomics_dataset_name: str
         Proteomics dataset name
     """
+    data_folder = Path(data_folder)
+    zarr_tiles = list(data_folder.glob("*.zarr"))
+
+    if not len(zarr_tiles):
+        raise ValueError(f"Path {data_folder} must have zarr tiles.") 
+
+    full_extension = ''.join(zarr_tiles[0].suffixes)
     start_time = time()
     metadata_folder = results_folder.joinpath("metadata")
     utils.create_folder(str(metadata_folder))
@@ -206,7 +213,12 @@ def main(
     channel_metadata = []
 
     for t in tile_metadata:
-        t["file"] = f"{Path(t['file']).stem}.ome.zarr"
+        t["file"] = f"{Path(t['file']).stem}{full_extension}"
+        absolute_tile_path = data_folder.joinpath(t["file"])
+
+        if not absolute_tile_path.exists():
+            raise ValueError(f"Tile path {absolute_tile_path} does not exist!")
+
         if int(channel_wavelength) == int(t["channel_wavelength"]):
             channel_metadata.append(t)
 
