@@ -232,7 +232,7 @@ def main(
     )
     end_time = time()
 
-    output_big_stitcher_json = f"/{results_folder}/{proteomics_dataset_name}_stitch_channel_{channel_wavelength}_params.json"
+    output_big_stitcher_json = f"{results_folder}/{proteomics_dataset_name}_stitch_channel_{channel_wavelength}_params.json"
 
     data_processes = []
     data_processes.append(
