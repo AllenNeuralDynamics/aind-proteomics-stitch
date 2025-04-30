@@ -17,7 +17,14 @@ def run():
 
     # It is assumed that these files
     # will be in the data folder
-
+    """
+    required_input_elements = [
+        f"{data_folder}/HCR_785631_2025-04-19_02-00-00/SPIM/derivatives/processing_manifest.json",
+        f"{data_folder}/HCR_785631_2025-04-19_02-00-00/SPIM/derivatives/all_channel_tile_metadata.json",
+        f"{data_folder}/HCR_785631_2025-04-19_02-00-00/data_description.json",
+        f"{data_folder}/HCR_785631_2025-04-19_02-00-00/acquisition.json",
+    ]
+    """
     required_input_elements = [
         f"{data_folder}/processing_manifest.json",
         f"{data_folder}/all_channel_tile_metadata.json",
@@ -51,14 +58,14 @@ def run():
     # print("Contents data folder: ", list(data_folder.glob("*")))
 
     bigstitcher.main(
-        data_folder=data_folder,
+        data_folder=data_folder,#.joinpath("HCR_785631_2025-04-19_02-radially-corrected"),
         channel_wavelength=stitching_channel,
         path_to_tile_metadata=path_to_tile_metadata,
         voxel_resolution=voxel_resolution,
         output_json_file=output_json_file,
         results_folder=results_folder,
         proteomics_dataset_name=proteomics_dataset_name,
-        res_for_transforms=(0.19, 0.19, 0.85),  # TODO -> Do this as parameter
+        res_for_transforms=(0.76, 0.76, 3.4),  # TODO -> Do this as parameter
     )
 
 

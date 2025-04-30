@@ -188,6 +188,7 @@ def add_image_loader(
     seq_desc: ET.Element,
     tiles: list[str],
     s3_data_path: str,
+    type_of_path: str = "absolute"
 ) -> None:
     """
     Adds an image loader element to the sequence description.
@@ -206,7 +207,7 @@ def add_image_loader(
     img_loader.attrib["format"] = "bdv.multimg.zarr"
     img_loader.attrib["version"] = "1.0"
     x = ET.SubElement(img_loader, "zarr")
-    x.attrib["type"] = "absolute"
+    x.attrib["type"] = type_of_path
 
     x.text = s3_data_path
 
@@ -344,6 +345,7 @@ def add_sequence_description(
     tile_resolution: list[float],
     tile_channel_number: list[int],
     s3_data_path: str,
+    data_path_type: str = "absolute"
 ) -> None:
     """
     Adds a sequence description to the XML structure.
@@ -382,7 +384,7 @@ def add_sequence_description(
         ET.SubElement(seq_desc, "MissingViews")
 
     seq_desc = ET.SubElement(parent, "SequenceDescription")
-    add_image_loader(seq_desc, tiles, s3_data_path)
+    add_image_loader(seq_desc, tiles, s3_data_path, data_path_type)
     add_view_setups(seq_desc, tiles, tile_sizes, tile_resolution, tile_channel_number)
     add_time_points(seq_desc)
 
@@ -420,7 +422,12 @@ def add_view_registrations(parent: ET.Element, translations: list[list[float]]) 
         vr.append(vt)
 
 
-def parse_json(json_path: str, s3_data_path: str, microns=False) -> ET.ElementTree:
+def parse_json(
+    json_path: str,
+    s3_data_path: str,
+    data_path_type:str = "absolute",
+    microns=False
+) -> ET.ElementTree:
     """
     Parses a JSON file and converts it into an XML ElementTree for BigStitcher.
 
@@ -464,6 +471,7 @@ def parse_json(json_path: str, s3_data_path: str, microns=False) -> ET.ElementTr
         tile_resolution,
         tile_channel_numbers,
         s3_data_path,
+        data_path_type
     )
     add_view_registrations(spim_data, tile_translations)
 

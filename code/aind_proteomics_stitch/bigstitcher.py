@@ -13,6 +13,7 @@ from aind_data_schema.core.processing import DataProcess, ProcessName
 from . import (__maintainers__, __pipeline_version__, __version__,
                bigstitcher_utilities)
 from .utils import utils
+import math
 
 
 def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
@@ -134,9 +135,9 @@ def get_stitching_dict(
         "phase_correlation_params": {
             "downsample": downsample,
             "min_correlation": 0.6,
-            "max_shift_in_x": 100,
-            "max_shift_in_y": 100,
-            "max_shift_in_z": 100,
+            "max_shift_in_x": 20,
+            "max_shift_in_y": 20,
+            "max_shift_in_z": 20,
         },
     }
     return stitching_dict
@@ -146,30 +147,30 @@ def get_estimated_downsample(
     voxel_resolution: List[float], phase_corr_res: Tuple[float] = (8.0, 8.0, 4.0)
 ) -> int:
     """
-    Get the estimated multiscale based on the provided
-    voxel resolution. This is used for image stitching.
-
-    e.g., if the original resolution is (1.8. 1.8, 2.0)
-    in XYZ order, and you provide (3.6, 3.6, 4.0) as
-    image resolution, then the picked resolution will be
-    1.
+    Estimate the multiscale level (power-of-two downsampling) such that
+    the resolution at that level is at least the phase_corr_res in all axes.
 
     Parameters
     ----------
-    voxel_resolution: List[float]
-        Image original resolution. This would be the resolution
-        in the multiscale "0".
-    phase_corr_res: Tuple[float]
-        Approximated resolution that will be used for bigstitcher
-        in the computation of the transforms. Default: (8.0, 8.0, 4.0)
+    voxel_resolution : List[float]
+        Resolution of the original image at level 0 (in XYZ order).
+    phase_corr_res : Tuple[float]
+        Target resolution for phase correlation (in XYZ order).
+
+    Returns
+    -------
+    int
+        Estimated downsample level (0 or higher).
     """
 
-    downsample_versions = []
-    for idx in range(len(voxel_resolution)):
-        downsample_versions.append(phase_corr_res[idx] // voxel_resolution[idx])
+    levels = []
+    for vres, cres in zip(voxel_resolution, phase_corr_res):
+        if cres < vres:
+            raise ValueError("phase_corr_res must be greater than or equal to voxel_resolution.")
+        ratio = cres / vres
+        levels.append(math.floor(math.log2(ratio)))
 
-    downsample_res = int(min(downsample_versions) - 1)
-    return downsample_res
+    return max(levels)
 
 
 def main(
@@ -226,7 +227,7 @@ def main(
     utils.save_dict_as_json(filename=output_json_file, dictionary=channel_metadata)
 
     tree = bigstitcher_utilities.parse_json(
-        output_json_file, str(data_folder), microns=True
+        output_json_file, str(data_folder), microns=True, data_path_type = "relative",
     )
     output_big_stitcher_xml = f"{results_folder}/{proteomics_dataset_name}_stitching_channel_{channel_wavelength}.xml"
 
@@ -236,8 +237,7 @@ def main(
         voxel_resolution=voxel_resolution, phase_corr_res=res_for_transforms
     )
 
-    # print(f"Voxel resolution: {voxel_resolution} - Estimating transforms in res: {res_for_transforms} - Scale: {estimated_downsample}")
-
+    #print(f"Voxel resolution: {voxel_resolution} - Estimating transforms in res: {res_for_transforms} - Scale: {estimated_downsample}")
     proteomics_stitching_params = get_stitching_dict(
         specimen_id=proteomics_dataset_name,
         dataset_xml_path=output_big_stitcher_xml,
