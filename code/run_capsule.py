@@ -12,6 +12,7 @@ from aind_proteomics_stitch.utils import utils
 def run():
     """Function that runs image stitching with BigStitcher"""
     data_folder = Path("../data")
+    image_data_folder = data_folder.joinpath('raw_data')
     results_folder = Path("../results")  # os.path.relpath(
     # scratch_folder = Path(os.path.abspath("../scratch"))
 
@@ -50,7 +51,7 @@ def run():
     path_to_tile_metadata = required_input_elements[1]
 
     bigstitcher.main(
-        data_folder=data_folder,
+        data_folder=image_data_folder,
         channel_wavelength=stitching_channel,
         path_to_tile_metadata=path_to_tile_metadata,
         voxel_resolution=voxel_resolution,
