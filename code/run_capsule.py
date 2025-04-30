@@ -49,7 +49,7 @@ def run():
     # Computing image transformations with bigtstitcher
     path_to_tile_metadata = required_input_elements[1]
 
-    bigstitcher.proteomics_main(
+    bigstitcher.main(
         data_folder=data_folder,
         channel_wavelength=stitching_channel,
         path_to_tile_metadata=path_to_tile_metadata,
