@@ -213,7 +213,8 @@ def main(
     channel_metadata = []
 
     for t in tile_metadata:
-        t["file"] = f"{Path(t['file']).stem}{full_extension}"
+        tilename = Path(t['file']).stem.replace(full_extension, '')
+        t["file"] = f"{tilename}{full_extension}"
         absolute_tile_path = data_folder.joinpath(t["file"])
 
         if not absolute_tile_path.exists():
