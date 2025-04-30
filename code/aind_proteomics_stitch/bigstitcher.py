@@ -212,12 +212,12 @@ def main(
 
     utils.save_dict_as_json(filename=output_json_file, dictionary=channel_metadata)
 
-    tree = bigstitcher_utility.parse_json(
+    tree = bigstitcher_utilities.parse_json(
         output_json_file, str(data_folder), microns=True
     )
     output_big_stitcher_xml = f"/{results_folder}/{proteomics_dataset_name}_stitching_channel_{channel_wavelength}.xml"
 
-    bigstitcher_utility.write_xml(tree, output_big_stitcher_xml)
+    bigstitcher_utilities.write_xml(tree, output_big_stitcher_xml)
 
     estimated_downsample = get_estimated_downsample(
         voxel_resolution=voxel_resolution, phase_corr_res=res_for_transforms
