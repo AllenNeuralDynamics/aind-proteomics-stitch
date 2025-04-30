@@ -3,7 +3,6 @@ Run the capsule
 This script is used to run the capsule for stitching images using BigStitcher.
 """
 
-import os
 from pathlib import Path
 
 from aind_proteomics_stitch import bigstitcher
@@ -12,7 +11,7 @@ from aind_proteomics_stitch.utils import utils
 
 def run():
     """Function that runs image stitching with BigStitcher"""
-    data_folder = Path(os.path.abspath("../data/HCR_785631_2025-04-19_02-00-00"))
+    data_folder = Path("../data")
     results_folder = Path("../results")  # os.path.relpath(
     # scratch_folder = Path(os.path.abspath("../scratch"))
 
@@ -20,8 +19,8 @@ def run():
     # will be in the data folder
 
     required_input_elements = [
-        f"{data_folder}/SPIM/derivatives/processing_manifest.json",
-        f"{data_folder}/SPIM/derivatives/all_channel_tile_metadata.json",
+        f"{data_folder}/processing_manifest.json",
+        f"{data_folder}/all_channel_tile_metadata.json",
         f"{data_folder}/data_description.json",
         f"{data_folder}/acquisition.json",
     ]
@@ -35,7 +34,7 @@ def run():
 
     pipeline_config, proteomics_dataset_name, acquisition_dict = utils.get_data_config(
         data_folder=data_folder,
-        processing_manifest_path="SPIM/derivatives/processing_manifest.json",
+        processing_manifest_path="processing_manifest.json",
         data_description_path="data_description.json",
         acquisition_path="acquisition.json",
     )
@@ -49,19 +48,16 @@ def run():
 
     # Computing image transformations with bigtstitcher
     path_to_tile_metadata = required_input_elements[1]
-    relative_data_folder = os.path.relpath(
-        "/data/HCR_785631_2025-04-19_02-radially-corrected"
-    )
 
     bigstitcher.proteomics_main(
-        data_folder=relative_data_folder,
+        data_folder=data_folder,
         channel_wavelength=stitching_channel,
         path_to_tile_metadata=path_to_tile_metadata,
         voxel_resolution=voxel_resolution,
         output_json_file=output_json_file,
         results_folder=results_folder,
         proteomics_dataset_name=proteomics_dataset_name,
-        res_for_transforms=(0.19, 0.19, 0.85),
+        res_for_transforms=(0.19, 0.19, 0.85),  # TODO -> Do this as parameter
     )
 
 
