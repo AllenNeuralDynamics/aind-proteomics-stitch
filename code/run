@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-set -ex
 
-# This is the master script for the capsule. When you click "Reproducible Run", the code in this file will execute.
-python -u run_capsule.py "$@"
+source /opt/conda/etc/profile.d/conda.sh
+conda activate proteomics_stitch
+
+# Creates the SmartSPIM BigStitcher XML
+big_stitcher_json=$(python run_capsule.py)
+
+conda activate bigstitcher_env
+
+# echo "Captured Output: $big_stitcher_json"
+python -m aind_exaspim_pipeline_utils.imagej_wrapper --input_json $big_stitcher_json --log_level="DEBUG"  --results_path ../results
