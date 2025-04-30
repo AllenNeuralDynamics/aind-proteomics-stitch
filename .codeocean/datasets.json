@@ -1,0 +1,13 @@
+{
+	"version": 1,
+	"attached_datasets": [
+		{
+			"id": "088c06cf-56c4-4397-82bb-c692efc406a0",
+			"mount": "HCR_785631_2025-04-19_02-radially-corrected"
+		},
+		{
+			"id": "553a756b-5c0b-4b9f-88fb-4a293161182f",
+			"mount": "HCR_785631_2025-04-19_02-00-00"
+		}
+	]
+}
