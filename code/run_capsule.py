@@ -48,7 +48,7 @@ def run():
 
     # Computing image transformations with bigtstitcher
     path_to_tile_metadata = required_input_elements[1]
-    print("Contents data folder: ", list(data_folder.glob("*")))
+    # print("Contents data folder: ", list(data_folder.glob("*")))
 
     bigstitcher.main(
         data_folder=data_folder,
