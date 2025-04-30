@@ -1,3 +1,3 @@
-# aind-capsule-template
+# aind-proteomics-stitch
 
-Basic structure of a capsule to be customized as needed.
+Automated capsule to do proteomics stitching
