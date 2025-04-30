@@ -228,7 +228,7 @@ def main(
     tree = bigstitcher_utilities.parse_json(
         output_json_file, str(data_folder), microns=True
     )
-    output_big_stitcher_xml = f"/{results_folder}/{proteomics_dataset_name}_stitching_channel_{channel_wavelength}.xml"
+    output_big_stitcher_xml = f"{results_folder}/{proteomics_dataset_name}_stitching_channel_{channel_wavelength}.xml"
 
     bigstitcher_utilities.write_xml(tree, output_big_stitcher_xml)
 
