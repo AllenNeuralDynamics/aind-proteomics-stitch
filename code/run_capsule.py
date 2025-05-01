@@ -58,7 +58,7 @@ def run():
     # print("Contents data folder: ", list(data_folder.glob("*")))
 
     bigstitcher.main(
-        data_folder=data_folder,#.joinpath("HCR_785631_2025-04-19_02-radially-corrected"),
+        data_folder=data_folder,
         channel_wavelength=stitching_channel,
         path_to_tile_metadata=path_to_tile_metadata,
         voxel_resolution=voxel_resolution,
