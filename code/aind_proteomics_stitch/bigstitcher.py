@@ -16,7 +16,6 @@ from .utils import utils
 import math
 import os
 
-
 def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
     """
     Validates input elemts for a capsule in
@@ -200,7 +199,6 @@ def main(
     proteomics_dataset_name: str
         Proteomics dataset name
     """
-    data_folder = Path(data_folder)
     zarr_tiles = list(data_folder.glob("*.zarr"))
 
     if not len(zarr_tiles):

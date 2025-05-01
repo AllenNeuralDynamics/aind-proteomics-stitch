@@ -7,14 +7,20 @@ from pathlib import Path
 
 from aind_proteomics_stitch import bigstitcher
 from aind_proteomics_stitch.utils import utils
-
+import subprocess
 
 def run():
     """Function that runs image stitching with BigStitcher"""
     data_folder = Path("../data")
     results_folder = Path("../results")  # os.path.relpath(
     # scratch_folder = Path(os.path.abspath("../scratch"))
-
+    
+    data_folder = Path(data_folder)
+    data_in_data_folder = [str(l) for l in list(data_folder.glob("*"))]
+    print("Data in data folder: ", data_in_data_folder)
+    result = subprocess.run(['ls', '-al'], capture_output=True, text=True, cwd=data_folder)
+    print("ls -al command: ", result.stdout)
+    
     # It is assumed that these files
     # will be in the data folder
     """
