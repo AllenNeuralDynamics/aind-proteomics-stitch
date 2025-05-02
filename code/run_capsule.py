@@ -16,10 +16,10 @@ def run():
     # scratch_folder = Path(os.path.abspath("../scratch"))
     
     data_folder = Path(data_folder)
-    data_in_data_folder = [str(l) for l in list(data_folder.glob("*"))]
-    print("Data in data folder: ", data_in_data_folder)
-    result = subprocess.run(['ls', '-al'], capture_output=True, text=True, cwd=data_folder)
-    print("ls -al command: ", result.stdout)
+    #data_in_data_folder = [str(l) for l in list(data_folder.glob("*"))]
+    #print("Data in data folder: ", data_in_data_folder)
+    #result = subprocess.run(['ls', '-al'], capture_output=True, text=True, cwd=data_folder)
+    #print("ls -al command: ", result.stdout)
     
     # It is assumed that these files
     # will be in the data folder
