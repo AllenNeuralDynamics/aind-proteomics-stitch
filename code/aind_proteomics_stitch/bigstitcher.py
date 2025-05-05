@@ -182,6 +182,7 @@ def main(
     results_folder,
     proteomics_dataset_name,
     res_for_transforms=(0.19, 0.19, 0.85),
+    scale_for_transforms=None,
 ):
     """
     Computes image stitching with BigStitcher using Phase Correlation
@@ -235,15 +236,18 @@ def main(
 
     bigstitcher_utilities.write_xml(tree, output_big_stitcher_xml)
 
-    estimated_downsample = get_estimated_downsample(
-        voxel_resolution=voxel_resolution, phase_corr_res=res_for_transforms
-    )
+    if scale_for_transforms is None:
+        scale_for_transforms = get_estimated_downsample(
+            voxel_resolution=voxel_resolution, phase_corr_res=res_for_transforms
+        )
 
-    #print(f"Voxel resolution: {voxel_resolution} - Estimating transforms in res: {res_for_transforms} - Scale: {estimated_downsample}")
+    scale_for_transforms = int(scale_for_transforms)
+    
+    #print(f"Voxel resolution: {voxel_resolution} - Estimating transforms in res: {res_for_transforms} - Scale: {scale_for_transforms}")
     proteomics_stitching_params = get_stitching_dict(
         specimen_id=proteomics_dataset_name,
         dataset_xml_path=output_big_stitcher_xml,
-        downsample=estimated_downsample,
+        downsample=scale_for_transforms,
     )
     end_time = time()
 
