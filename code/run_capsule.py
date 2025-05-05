@@ -71,7 +71,10 @@ def run():
         output_json_file=output_json_file,
         results_folder=results_folder,
         proteomics_dataset_name=proteomics_dataset_name,
-        res_for_transforms=(0.76, 0.76, 3.4),  # TODO -> Do this as parameter
+        res_for_transforms=(0.76, 0.76, 3.4),
+        scale_for_transforms=2,
+        # If this is provided, res for
+        # transforms is ignored
     )
 
 
