@@ -72,7 +72,7 @@ def run():
         results_folder=results_folder,
         proteomics_dataset_name=proteomics_dataset_name,
         res_for_transforms=(0.76, 0.76, 3.4),
-        scale_for_transforms=2,
+        scale_for_transforms=1,
         # If this is provided, res for
         # transforms is ignored
     )
