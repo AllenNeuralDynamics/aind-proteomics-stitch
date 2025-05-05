@@ -135,9 +135,9 @@ def get_stitching_dict(
         "phase_correlation_params": {
             "downsample": downsample,
             "min_correlation": 0.6,
-            "max_shift_in_x": 20,
-            "max_shift_in_y": 20,
-            "max_shift_in_z": 20,
+            "max_shift_in_x": 70,
+            "max_shift_in_y": 70,
+            "max_shift_in_z": 70,
         },
     }
     return stitching_dict
