@@ -174,7 +174,7 @@ def get_estimated_downsample(
 
 
 def main(
-    data_folder,
+    path_to_data,
     channel_wavelength,
     path_to_tile_metadata,
     voxel_resolution,
@@ -183,6 +183,7 @@ def main(
     proteomics_dataset_name,
     res_for_transforms=(0.19, 0.19, 0.85),
     scale_for_transforms=None,
+    full_extension=".ome.zarr",
 ):
     """
     Computes image stitching with BigStitcher using Phase Correlation
@@ -200,12 +201,6 @@ def main(
     proteomics_dataset_name: str
         Proteomics dataset name
     """
-    zarr_tiles = list(data_folder.glob("*.zarr"))
-
-    if not len(zarr_tiles):
-        raise ValueError(f"Path {data_folder} must have zarr tiles.") 
-
-    full_extension = ''.join(zarr_tiles[0].suffixes)
     start_time = time()
     metadata_folder = results_folder.joinpath("metadata")
     utils.create_folder(str(metadata_folder))
@@ -216,7 +211,7 @@ def main(
     for t in tile_metadata:
         tilename = Path(t['file']).stem.replace(full_extension, '')
         t["file"] = f"{tilename}{full_extension}"
-        absolute_tile_path = data_folder.joinpath(t["file"])
+        absolute_tile_path = f"{path_to_data}/{t['file']}"
 
         if not absolute_tile_path.exists():
             raise ValueError(f"Tile path {absolute_tile_path} does not exist!")
@@ -227,7 +222,7 @@ def main(
     utils.save_dict_as_json(filename=output_json_file, dictionary=channel_metadata)
 
     tree = bigstitcher_utilities.parse_json(
-        output_json_file, str(data_folder), microns=True, data_path_type = "absolute",
+        output_json_file, str(path_to_data), microns=True, data_path_type = "absolute",
     )
     zarr_path_xml = tree.find("SequenceDescription").find("ImageLoader").find("zarr")
     zarr_path_xml.text = os.path.abspath(zarr_path_xml.text)

@@ -23,19 +23,14 @@ def run():
     
     # It is assumed that these files
     # will be in the data folder
-    """
-    required_input_elements = [
-        f"{data_folder}/HCR_785631_2025-04-19_02-00-00/SPIM/derivatives/processing_manifest.json",
-        f"{data_folder}/HCR_785631_2025-04-19_02-00-00/SPIM/derivatives/all_channel_tile_metadata.json",
-        f"{data_folder}/HCR_785631_2025-04-19_02-00-00/data_description.json",
-        f"{data_folder}/HCR_785631_2025-04-19_02-00-00/acquisition.json",
-    ]
-    """
+
     required_input_elements = [
         f"{data_folder}/processing_manifest.json",
         f"{data_folder}/all_channel_tile_metadata.json",
         f"{data_folder}/data_description.json",
         f"{data_folder}/acquisition.json",
+        f"{data_folder}/processed_data_description.json",
+        f"{data_folder}/radial_correction_parameters.json",
     ]
 
     missing_files = utils.validate_capsule_inputs(required_input_elements)
@@ -63,8 +58,19 @@ def run():
     path_to_tile_metadata = required_input_elements[1]
     # print("Contents data folder: ", list(data_folder.glob("*")))
 
+    processed_data_description = utils.read_json_as_dict(required_input_elements[4])
+    radial_parameters = utils.read_json_as_dict(required_input_elements[5])
+
+    processed_asset_name = processed_data_description.get("name", None)
+    bucket_name = radial_parameters.get('bucket_name', None)
+
+    if processed_asset_name is None or bucket_name is None:
+        raise ValueError("Stitching requires S3 paths in Code Ocean at the moment.")
+
+    path_to_data = f"s3://{bucket_name}/{processed_asset_name}/image_radial_correction"
+
     bigstitcher.main(
-        data_folder=data_folder,
+        path_to_data=path_to_data,
         channel_wavelength=stitching_channel,
         path_to_tile_metadata=path_to_tile_metadata,
         voxel_resolution=voxel_resolution,
