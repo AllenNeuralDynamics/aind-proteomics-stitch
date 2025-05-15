@@ -28,14 +28,6 @@ def run():
         f"{data_folder}/processed/data_description.json",
         f"{data_folder}/radial_correction_parameters.json",
     ]
-    # required_input_elements = [
-    #     f"{data_folder}/HCR_785830_2025-03-19_17-00-00/SPIM/derivatives/processing_manifest.json",
-    #     f"{data_folder}/HCR_785830_2025-03-19_17-00-00/SPIM/derivatives/all_channel_tile_metadata.json",
-    #     f"{data_folder}/HCR_785830_2025-03-19_17-00-00/data_description.json",
-    #     f"{data_folder}/HCR_785830_2025-03-19_17-00-00/acquisition.json",
-    #     f"{data_folder}/processed_data_description.json",
-    #     f"{data_folder}/radial_correction_parameters.json",
-    # ]
 
     missing_files = utils.validate_capsule_inputs(required_input_elements)
 
@@ -45,7 +37,7 @@ def run():
         )
 
     pipeline_config, proteomics_dataset_name, acquisition_dict = utils.get_data_config(
-        data_folder=data_folder,  # f"{data_folder}/HCR_785830_2025-03-19_17-00-00",#
+        data_folder=data_folder,
         processing_manifest_path="processing_manifest.json",
         data_description_path="data_description.json",
         acquisition_path="acquisition.json",
@@ -60,7 +52,6 @@ def run():
 
     # Computing image transformations with bigtstitcher
     path_to_tile_metadata = required_input_elements[1]
-    # print("Contents data folder: ", list(data_folder.glob("*")))
 
     processed_data_description = utils.read_json_as_dict(required_input_elements[4])
     radial_parameters = utils.read_json_as_dict(required_input_elements[5])
