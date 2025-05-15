@@ -188,7 +188,7 @@ def add_image_loader(
     seq_desc: ET.Element,
     tiles: list[str],
     s3_data_path: str,
-    type_of_path: str = "absolute"
+    type_of_path: str = "absolute",
 ) -> None:
     """
     Adds an image loader element to the sequence description.
@@ -345,7 +345,7 @@ def add_sequence_description(
     tile_resolution: list[float],
     tile_channel_number: list[int],
     s3_data_path: str,
-    data_path_type: str = "absolute"
+    data_path_type: str = "relative",
 ) -> None:
     """
     Adds a sequence description to the XML structure.
@@ -423,10 +423,7 @@ def add_view_registrations(parent: ET.Element, translations: list[list[float]]) 
 
 
 def parse_json(
-    json_path: str,
-    s3_data_path: str,
-    data_path_type:str = "absolute",
-    microns=False
+    json_path: str, s3_data_path: str, data_path_type: str = "absolute", microns=False
 ) -> ET.ElementTree:
     """
     Parses a JSON file and converts it into an XML ElementTree for BigStitcher.
@@ -465,17 +462,17 @@ def parse_json(
     x.text = "."
 
     add_sequence_description(
-        spim_data,
-        tile_names,
-        tile_sizes,
-        tile_resolution,
-        tile_channel_numbers,
-        s3_data_path,
-        data_path_type
+        parent=spim_data,
+        tiles=tile_names,
+        tile_sizes=tile_sizes,
+        tile_resolution=tile_resolution,
+        tile_channel_number=tile_channel_numbers,
+        s3_data_path=s3_data_path,
+        data_path_type=data_path_type,
     )
     add_view_registrations(spim_data, tile_translations)
-
-    return ET.ElementTree(spim_data)
+    spim_data = ET.ElementTree(spim_data)
+    return spim_data
 
 
 def write_xml(tree: ET.ElementTree, path: str) -> None:

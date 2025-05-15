@@ -4,6 +4,8 @@ bigstitcher for proteomics data structure
 """
 
 import json
+import math
+import os
 from pathlib import Path
 from time import time
 from typing import List, Optional, Tuple
@@ -13,8 +15,7 @@ from aind_data_schema.core.processing import DataProcess, ProcessName
 from . import (__maintainers__, __pipeline_version__, __version__,
                bigstitcher_utilities)
 from .utils import utils
-import math
-import os
+
 
 def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
     """
@@ -124,6 +125,7 @@ def get_stitching_dict(
     """
     # assert pathlib.Path(dataset_xml_path).exists()
 
+    max_shift = 40 // (downsample + 1)
     stitching_dict = {
         "session_id": str(specimen_id),
         "memgb": 100,
@@ -135,9 +137,9 @@ def get_stitching_dict(
         "phase_correlation_params": {
             "downsample": downsample,
             "min_correlation": 0.6,
-            "max_shift_in_x": 70,
-            "max_shift_in_y": 70,
-            "max_shift_in_z": 70,
+            "max_shift_in_x": max_shift,
+            "max_shift_in_y": max_shift,
+            "max_shift_in_z": max_shift,
         },
     }
     return stitching_dict
@@ -166,7 +168,9 @@ def get_estimated_downsample(
     levels = []
     for vres, cres in zip(voxel_resolution, phase_corr_res):
         if cres < vres:
-            raise ValueError("phase_corr_res must be greater than or equal to voxel_resolution.")
+            raise ValueError(
+                "phase_corr_res must be greater than or equal to voxel_resolution."
+            )
         ratio = cres / vres
         levels.append(math.floor(math.log2(ratio)))
 
@@ -209,12 +213,12 @@ def main(
     channel_metadata = []
 
     for t in tile_metadata:
-        tilename = Path(t['file']).stem.replace(full_extension, '')
+        tilename = Path(t["file"]).stem.replace(full_extension, "")
         t["file"] = f"{tilename}{full_extension}"
         absolute_tile_path = f"{path_to_data}/{t['file']}"
-
-        if not absolute_tile_path.exists():
-            raise ValueError(f"Tile path {absolute_tile_path} does not exist!")
+        # print(absolute_tile_path)
+        # if not absolute_tile_path.exists():
+        #     raise ValueError(f"Tile path {absolute_tile_path} does not exist!")
 
         if int(channel_wavelength) == int(t["channel_wavelength"]):
             channel_metadata.append(t)
@@ -222,11 +226,15 @@ def main(
     utils.save_dict_as_json(filename=output_json_file, dictionary=channel_metadata)
 
     tree = bigstitcher_utilities.parse_json(
-        output_json_file, str(path_to_data), microns=True, data_path_type = "absolute",
+        json_path=output_json_file,
+        s3_data_path=str(path_to_data),
+        data_path_type="relative",
+        microns=True,
     )
     zarr_path_xml = tree.find("SequenceDescription").find("ImageLoader").find("zarr")
-    zarr_path_xml.text = os.path.abspath(zarr_path_xml.text)
-    
+    if not zarr_path_xml.text.startswith("s3://"):
+        zarr_path_xml.text = os.path.abspath(zarr_path_xml.text)
+
     output_big_stitcher_xml = f"{results_folder}/{proteomics_dataset_name}_stitching_channel_{channel_wavelength}.xml"
 
     bigstitcher_utilities.write_xml(tree, output_big_stitcher_xml)
@@ -237,8 +245,8 @@ def main(
         )
 
     scale_for_transforms = int(scale_for_transforms)
-    
-    #print(f"Voxel resolution: {voxel_resolution} - Estimating transforms in res: {res_for_transforms} - Scale: {scale_for_transforms}")
+
+    # print(f"Voxel resolution: {voxel_resolution} - Estimating transforms in res: {res_for_transforms} - Scale: {scale_for_transforms}")
     proteomics_stitching_params = get_stitching_dict(
         specimen_id=proteomics_dataset_name,
         dataset_xml_path=output_big_stitcher_xml,
