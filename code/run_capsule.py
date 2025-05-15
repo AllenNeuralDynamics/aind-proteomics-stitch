@@ -25,7 +25,7 @@ def run():
         f"{data_folder}/all_channel_tile_metadata.json",
         f"{data_folder}/data_description.json",
         f"{data_folder}/acquisition.json",
-        f"{data_folder}/processed_data_description.json",
+        f"{data_folder}/processed/data_description.json",
         f"{data_folder}/radial_correction_parameters.json",
     ]
     # required_input_elements = [
