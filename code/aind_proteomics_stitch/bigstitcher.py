@@ -12,8 +12,7 @@ from typing import List, Optional, Tuple
 
 from aind_data_schema.core.processing import DataProcess, ProcessName
 
-from . import (__maintainers__, __pipeline_version__, __version__,
-               bigstitcher_utilities)
+from . import __maintainers__, __pipeline_version__, __version__
 from .utils import create_nominal_positions, utils
 
 

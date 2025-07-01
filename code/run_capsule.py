@@ -28,30 +28,27 @@ def run():
         f"{data_folder}/radial_correction_parameters.json",
     ]
 
-    #     missing_files = utils.validate_capsule_inputs(required_input_elements)
+    missing_files = utils.validate_capsule_inputs(required_input_elements)
 
-    # if len(missing_files):
-    #     raise ValueError(
-    #         f"We miss the following files in the capsule input: {missing_files}"
-    #     )
+    if len(missing_files):
+        raise ValueError(
+            f"We miss the following files in the capsule input: {missing_files}"
+        )
 
     pipeline_config, proteomics_dataset_name, acquisition_dict = utils.get_data_config(
         data_folder=data_folder,
-        processing_manifest_path="HCR_768582_2025-06-01_00-00-00/SPIM/derivatives/processing_manifest.json",  # processing_manifest.json",
-        data_description_path="HCR_768582_2025-06-01_00-00-00/data_description.json",  # "data_description.json",
-        acquisition_path="HCR_768582_2025-06-01_00-00-00/acquisition.json",  # acquisition.json",
+        processing_manifest_path="processing_manifest.json",
+        data_description_path="data_description.json",
+        acquisition_path="acquisition.json",
     )
 
     voxel_resolution = utils.get_resolution(acquisition_dict)
     stitching_channel = pipeline_config["pipeline_processing"]["stitching"]["channel"]
 
-    # processed_data_description = utils.read_json_as_dict(required_input_elements[3])
+    processed_data_description = utils.read_json_as_dict(required_input_elements[3])
     radial_parameters = utils.read_json_as_dict(required_input_elements[4])
 
-    processed_asset_name = (
-        "HCR_768582_2025-06-01_00-00-00_processed_2025-07-01_16-24-10"
-    )
-    # processed_data_description.get("name", None)
+    processed_data_description.get("name", None)
     bucket_name = radial_parameters.get("bucket_name", None)
 
     if processed_asset_name is None or bucket_name is None:
