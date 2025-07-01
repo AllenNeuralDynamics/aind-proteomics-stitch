@@ -48,7 +48,7 @@ def run():
     processed_data_description = utils.read_json_as_dict(required_input_elements[3])
     radial_parameters = utils.read_json_as_dict(required_input_elements[4])
 
-    processed_data_description.get("name", None)
+    processed_asset_name = processed_data_description.get("name", None)
     bucket_name = radial_parameters.get("bucket_name", None)
 
     if processed_asset_name is None or bucket_name is None:
