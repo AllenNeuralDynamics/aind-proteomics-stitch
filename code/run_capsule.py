@@ -22,41 +22,36 @@ def run():
     # will be in the data folder
     required_input_elements = [
         f"{data_folder}/processing_manifest.json",
-        f"{data_folder}/all_channel_tile_metadata.json",
         f"{data_folder}/data_description.json",
         f"{data_folder}/acquisition.json",
         f"{data_folder}/processed/data_description.json",
         f"{data_folder}/radial_correction_parameters.json",
     ]
 
-    missing_files = utils.validate_capsule_inputs(required_input_elements)
+    #     missing_files = utils.validate_capsule_inputs(required_input_elements)
 
-    if len(missing_files):
-        raise ValueError(
-            f"We miss the following files in the capsule input: {missing_files}"
-        )
+    # if len(missing_files):
+    #     raise ValueError(
+    #         f"We miss the following files in the capsule input: {missing_files}"
+    #     )
 
     pipeline_config, proteomics_dataset_name, acquisition_dict = utils.get_data_config(
         data_folder=data_folder,
-        processing_manifest_path="processing_manifest.json",
-        data_description_path="data_description.json",
-        acquisition_path="acquisition.json",
+        processing_manifest_path="HCR_768582_2025-06-01_00-00-00/SPIM/derivatives/processing_manifest.json",  # processing_manifest.json",
+        data_description_path="HCR_768582_2025-06-01_00-00-00/data_description.json",  # "data_description.json",
+        acquisition_path="HCR_768582_2025-06-01_00-00-00/acquisition.json",  # acquisition.json",
     )
 
     voxel_resolution = utils.get_resolution(acquisition_dict)
     stitching_channel = pipeline_config["pipeline_processing"]["stitching"]["channel"]
 
-    output_json_file = results_folder.joinpath(
-        f"{proteomics_dataset_name}_tile_metadata.json"
+    # processed_data_description = utils.read_json_as_dict(required_input_elements[3])
+    radial_parameters = utils.read_json_as_dict(required_input_elements[4])
+
+    processed_asset_name = (
+        "HCR_768582_2025-06-01_00-00-00_processed_2025-07-01_16-24-10"
     )
-
-    # Computing image transformations with bigtstitcher
-    path_to_tile_metadata = required_input_elements[1]
-
-    processed_data_description = utils.read_json_as_dict(required_input_elements[4])
-    radial_parameters = utils.read_json_as_dict(required_input_elements[5])
-
-    processed_asset_name = processed_data_description.get("name", None)
+    # processed_data_description.get("name", None)
     bucket_name = radial_parameters.get("bucket_name", None)
 
     if processed_asset_name is None or bucket_name is None:
@@ -66,9 +61,8 @@ def run():
     bigstitcher.main(
         path_to_data=path_to_data,
         channel_wavelength=stitching_channel,
-        path_to_tile_metadata=path_to_tile_metadata,
+        acquisition_path=required_input_elements[2],
         voxel_resolution=voxel_resolution,
-        output_json_file=output_json_file,
         results_folder=results_folder,
         proteomics_dataset_name=proteomics_dataset_name,
         res_for_transforms=(0.76, 0.76, 3.4),
