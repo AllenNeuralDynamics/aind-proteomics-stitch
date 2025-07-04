@@ -219,6 +219,10 @@ def create_bigstitcher_xml(
             scale = dimensions.get("scale", default_dimensions)
             image_size = [int(s) for s in scale]
             break
+        else:
+            print(f"Warning: Image {image.get('file_name', 'unknown')} \
+                  does not have valid dimensions, using default.")
+            image_size = default_dimensions
 
     if not image_size:
         raise ValueError("Problem getting image size!")
