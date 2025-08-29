@@ -14,7 +14,6 @@ from aind_data_schema.core.processing import DataProcess, ProcessName
 
 from . import __maintainers__, __pipeline_version__, __version__
 from .utils import create_nominal_positions, utils
-from .utils.xml_utils import transfer_stitching_to_multichannel
 
 
 def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
@@ -263,11 +262,7 @@ def main(
         pipeline_version=__pipeline_version__,
     )
     
-    CAMERA_ALIGNED_XML_PATH =  "/data/stitching_cam_alignment_spot_channels.xml"
-    COMBINED_XML_PATH = "/results/combined_stitching_cam_alignment_all_channels.xml"
-    transfer_stitching_to_multichannel(single_channel_xml = output_big_stitcher_xml, 
-    multichannel_xml = CAMERA_ALIGNED_XML_PATH, 
-    output_xml = COMBINED_XML_PATH)
+
 
     with open(output_big_stitcher_json, "w") as f:
         json.dump(proteomics_stitching_params, f, indent=4)

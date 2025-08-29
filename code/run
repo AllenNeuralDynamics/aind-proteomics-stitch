@@ -10,3 +10,5 @@ conda activate bigstitcher_env
 
 # echo "Captured Output: $big_stitcher_json"
 python -m aind_exaspim_pipeline_utils.imagej_wrapper --input_json $big_stitcher_json --log_level="DEBUG"  --results_path ../results
+
+python /code/aind_proteomics_stitch/combine_stitching_and_cam_alignment.py
