@@ -59,6 +59,6 @@ SHELL ["/bin/bash", "-c"]
 # --- Create Conda Env: bigstitcher_env ---
 RUN conda create -y -n bigstitcher_env python=3.9
 
-# --- Run Custom Post-Install Script ---
-COPY postInstall /postInstall
-RUN chmod +x /postInstall && /postInstall
+COPY postInstall /
+RUN --mount=type=secret,id=secrets . /run/secrets/secrets \
+    && /postInstall
