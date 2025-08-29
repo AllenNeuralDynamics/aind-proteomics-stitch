@@ -1,4 +1,6 @@
 from .utils.xml_utils import transfer_stitching_to_multichannel
+from . import __maintainers__, __pipeline_version__, __version__
+from .utils import create_nominal_positions, utils
 
 def combine_xmls():
     output_big_stitcher_xml = '/results/bigstitcher.xml'
