@@ -9,7 +9,6 @@ import xml.etree.ElementTree as ET
 import boto3
 import re
 import json
-import numpy as np
 import xmltodict
 from collections import OrderedDict
 from typing import Optional, Dict, List, Tuple, Union
@@ -288,7 +287,7 @@ class BigStitcherXMLManager:
             viewsetups = [viewsetups]
         
         for viewsetup in viewsetups:
-            tile_id = int(viewsetup.get("@id", -1))
+            tile_id = self.get_tile_id_from_name(data, viewsetup['name'])
             tile_name = self.extract_tile_name_from_viewsetup(viewsetup)
             
             # Get transforms for this tile
@@ -296,7 +295,10 @@ class BigStitcherXMLManager:
             
             if len(transforms) > transform_index:
                 # Store the specified transform
-                transform_map[tile_name] = transforms[transform_index]
+                if transforms[transform_index]['Name'] == "Stitching Transform":
+                    transform_map[tile_name] = transforms[transform_index]
+                elif transforms[0]['Name'] == "Stitching Transform":
+                    transform_map[tile_name] = transforms[0]
                 print(f"  Extracted transform for {tile_name}")
             else:
                 print(f"  Warning: No transform at index {transform_index} for {tile_name}")
@@ -338,7 +340,7 @@ class BigStitcherXMLManager:
             data["SpimData"]["ViewRegistrations"]["ViewRegistration"] = view_registrations
         
         for viewsetup in viewsetups:
-            tile_id = int(viewsetup.get("@id", -1))
+            tile_id = self.get_tile_id_from_name(data, viewsetup['name'])
             tile_name = self.extract_tile_name_from_viewsetup(viewsetup)
             channel = self.get_channel_from_viewsetup(viewsetup)
             
@@ -615,7 +617,7 @@ if __name__ == "__main__":
     transfer_stitching_to_multichannel(
         single_channel_xml="s3://aind-open-data/HCR_000000-s43_2025-07-24_13-00-00_processed_2025-08-28_22-50-35/image_tile_alignment/bigstitcher.xml",
         multichannel_xml="s3://aind-open-data/HCR_000000-s43_2025-07-24_13-00-00_processed_2025-08-28_22-50-35/image_tile_alignment/stitching_cam_alignment_spot_channels.xml",
-        output_xml="../scratch/multichannel_with_stitching.xml",
+        output_xml="/scratch/multichannel_with_stitching.xml",
         # channels=[488, 561, 647]  # Optional: only apply to specific channels
     )
     
