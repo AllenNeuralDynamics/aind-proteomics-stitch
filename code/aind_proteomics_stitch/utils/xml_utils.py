@@ -94,6 +94,8 @@ class BigStitcherXMLManager:
                 raise Exception(f"Could not save XML to S3: {e}")
         else:
             # Save to local file
+            Path(output_path).parent.mkdir(exist_ok=True)
+
             with open(output_path, 'w') as f:
                 f.write(xml_str)
             print(f"Saved XML to local file: {output_path}")
@@ -444,7 +446,7 @@ class BigStitcherXMLManager:
             viewsetups = [viewsetups]
         
         for viewsetup in viewsetups:
-            tile_id = int(viewsetup.get("@id", -1))
+            tile_id = int(viewsetup.get("id", -1))
             channel = self.get_channel_from_viewsetup(viewsetup)
             
             if channel:
@@ -622,15 +624,15 @@ if __name__ == "__main__":
     )
     
     # Example 2: Split multichannel XML
-    # print("\n" + "=" * 60)
-    # print("Example 2: Split multichannel XML")
-    # print("=" * 60)
+    print("\n" + "=" * 60)
+    print("Example 2: Split multichannel XML")
+    print("=" * 60)
     
-    # output_files = split_multichannel_xml(
-    #     xml_path="s3://bucket/path/multichannel.xml",
-    #     output_dir="s3://bucket/output/"
-    # )
-    # print(f"Created {len(output_files)} channel-specific XMLs")
+    output_files = split_multichannel_xml(
+        xml_path="/scratch/multichannel_with_stitching.xml",
+        output_dir="/scratch/single_channel_xmls"
+    )
+    print(f"Created {len(output_files)} channel-specific XMLs")
     
     # Example 3: Validate transform transfer
     # print("\n" + "=" * 60)
