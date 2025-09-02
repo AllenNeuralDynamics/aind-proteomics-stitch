@@ -94,7 +94,7 @@ class BigStitcherXMLManager:
                 raise Exception(f"Could not save XML to S3: {e}")
         else:
             # Save to local file
-            Path(output_path).parent.mkdir(exist_ok=True)
+            Path(output_path).parent.mkdir(exist_ok=True, parents=True)
 
             with open(output_path, 'w') as f:
                 f.write(xml_str)
@@ -414,7 +414,18 @@ class BigStitcherXMLManager:
             channel_data = copy.deepcopy(data)
             
             # Filter ViewSetups and ViewRegistrations
-            self._filter_xml_to_channel(channel_data, viewsetup_ids)
+            # self._filter_xml_to_channel(channel_data, viewsetup_ids)
+            reindex_tiles = False            
+            # Build ID mapping if reindexing
+            id_mapping = {}
+            if reindex_tiles:
+                for new_id, old_id in enumerate(sorted(viewsetup_ids)):
+                    id_mapping[old_id] = new_id
+                print(f"  Reindexing {len(id_mapping)} tiles starting from 0")
+            else:
+                # Identity mapping
+                id_mapping = {vid: vid for vid in viewsetup_ids}
+            self._filter_xml_to_channel_complete(channel_data, viewsetup_ids, id_mapping = id_mapping, channel = int(channel))
             
             # Save the channel-specific XML
             output_path = f"{output_dir}/{output_prefix}_{channel}.xml"
@@ -474,7 +485,7 @@ class BigStitcherXMLManager:
         
         filtered_viewsetups = [
             vs for vs in viewsetups 
-            if int(vs.get("@id", -1)) in viewsetup_ids
+            if int(vs.get("id", -1)) in viewsetup_ids
         ]
         
         data["SpimData"]["SequenceDescription"]["ViewSetups"]["ViewSetup"] = filtered_viewsetups
@@ -491,6 +502,178 @@ class BigStitcherXMLManager:
         
         data["SpimData"]["ViewRegistrations"]["ViewRegistration"] = filtered_registrations
     
+    def _filter_xml_to_channel_complete(
+        self, 
+        data: dict, 
+        viewsetup_ids: List[int],
+        id_mapping: Dict[int, int],
+        channel: int
+    ) -> None:
+        """
+        Comprehensively filter XML data to only include data for a single channel.
+        This includes ViewSetups, ViewRegistrations, ImageLoader paths, and all references.
+        
+        Parameters
+        ----------
+        data : dict
+            XML data (modified in place)
+        viewsetup_ids : list
+            List of ViewSetup IDs to keep
+        id_mapping : dict
+            Mapping from old IDs to new IDs (can be identity mapping)
+        channel : int
+            Channel wavelength being extracted
+        """
+        # 1. Filter and optionally reindex ViewSetups
+        viewsetups = data["SpimData"]["SequenceDescription"]["ViewSetups"]["ViewSetup"]
+        if not isinstance(viewsetups, list):
+            viewsetups = [viewsetups]
+        
+        filtered_viewsetups = []
+        for vs in viewsetups:
+            old_id = int(vs.get("id", -1))
+            if old_id in viewsetup_ids:
+                # Update ID if reindexing
+                vs["id"] = str(id_mapping[old_id])
+                
+                # Update tile attribute if reindexing
+                if "attributes" in vs and "tile" in vs["attributes"]:
+                    vs["attributes"]["tile"] = str(id_mapping[old_id])
+                
+                filtered_viewsetups.append(vs)
+        
+        data["SpimData"]["SequenceDescription"]["ViewSetups"]["ViewSetup"] = filtered_viewsetups
+        
+        # 2. Filter and update ViewRegistrations
+        view_registrations = data["SpimData"]["ViewRegistrations"]["ViewRegistration"]
+        if not isinstance(view_registrations, list):
+            view_registrations = [view_registrations]
+        
+        filtered_registrations = []
+        for vr in view_registrations:
+            old_setup = int(vr.get("@setup", -1))
+            if old_setup in viewsetup_ids:
+                # Update setup reference
+                vr["@setup"] = str(id_mapping[old_setup])
+                
+                filtered_registrations.append(vr)
+        
+        data["SpimData"]["ViewRegistrations"]["ViewRegistration"] = filtered_registrations
+        
+        # 3. Update ImageLoader section to only include relevant zarr paths
+        if "SequenceDescription" in data["SpimData"] and "ImageLoader" in data["SpimData"]["SequenceDescription"]:
+            image_loader = data["SpimData"]["SequenceDescription"]["ImageLoader"]
+            
+            # Handle Zarr format
+            if "format" in image_loader and "zarr" in image_loader["format"].lower():
+                if "zarr" in image_loader:
+                    zarr_data = image_loader["zarr"]
+                    
+                    # Filter dataset entries
+                    if "dataset" in zarr_data:
+                        datasets = zarr_data["dataset"]
+                        if not isinstance(datasets, list):
+                            datasets = [datasets]
+                        
+                        filtered_datasets = []
+                        for ds in datasets:
+                            # Check if this dataset is for our channel
+                            if "path" in ds and f"ch_{channel}" in ds["path"]:
+                                # Update setup reference if present
+                                if "@setup" in ds:
+                                    old_setup = int(ds["@setup"])
+                                    if old_setup in viewsetup_ids:
+                                        ds["@setup"] = str(id_mapping[old_setup])
+                                        filtered_datasets.append(ds)
+                                else:
+                                    # If no setup attribute, include if path matches channel
+                                    filtered_datasets.append(ds)
+                        
+                        zarr_data["dataset"] = filtered_datasets
+        
+        # 4. Filter ViewInterestPoints if present
+        if "ViewInterestPoints" in data["SpimData"]:
+            vip = data["SpimData"]["ViewInterestPoints"]
+            if "ViewInterestPoint" in vip:
+                view_interest_points = vip["ViewInterestPoint"]
+                if not isinstance(view_interest_points, list):
+                    view_interest_points = [view_interest_points]
+                
+                filtered_vips = []
+                for vip_entry in view_interest_points:
+                    old_setup = int(vip_entry.get("@setup", -1))
+                    if old_setup in viewsetup_ids:
+                        vip_entry["@setup"] = str(id_mapping[old_setup])
+                        filtered_vips.append(vip_entry)
+                
+                if filtered_vips:
+                    data["SpimData"]["ViewInterestPoints"]["ViewInterestPoint"] = filtered_vips
+                else:
+                    # Remove empty ViewInterestPoints section
+                    del data["SpimData"]["ViewInterestPoints"]
+        
+        # 5. Update base path if it contains channel information
+        if "BasePath" in data["SpimData"]["SequenceDescription"]:
+            base_path = data["SpimData"]["SequenceDescription"]["BasePath"]
+            # You might want to update this to reflect single-channel output
+            # For now, keep it as is or add channel suffix
+            # base_path_new = f"{base_path}_ch_{channel}"
+            # data["SpimData"]["SequenceDescription"]["BasePath"] = base_path_new
+        
+        # 6. Update any Attributes that might reference multiple channels
+        if "Attributes" in data["SpimData"]["SequenceDescription"]["ViewSetups"]:
+            attributes = data["SpimData"]["SequenceDescription"]["ViewSetups"]["Attributes"]
+            if "Channel" in attributes[1]:
+                channels = attributes[1]["Channel"]
+                if not isinstance(channels, list):
+                    channels = [channels]
+                
+                # Find the channel entry that matches our wavelength
+                matching_channel = None
+                for ch in channels:
+                    if "name" in ch and str(channel) in ch["name"]:
+                        matching_channel = ch
+                        break
+                    elif "id" in ch:
+                        # Check associated ViewSetups
+                        ch_id = int(ch["id"])
+                        if ch_id in id_mapping.values():
+                            matching_channel = ch
+                            break
+                
+                if matching_channel:
+                    # Keep only this channel
+                    matching_channel["id"] = str(channel)  # Single channel gets ID channel str
+                    attributes[1]["Channel"] = matching_channel
+        
+        # 7. Clean up the total number of setups/timepoints if specified
+        if "SequenceDescription" in data["SpimData"]:
+            seq_desc = data["SpimData"]["SequenceDescription"]
+            
+            # Update Timepoints if it lists specific setups
+            if "Timepoints" in seq_desc:
+                timepoints = seq_desc["Timepoints"]
+                if "@type" in timepoints and timepoints["@type"] == "range":
+                    # Update range to match filtered setups
+                    if "first" in timepoints and "last" in timepoints:
+                        new_first = min(id_mapping.values())
+                        new_last = max(id_mapping.values())
+                        timepoints["first"] = str(new_first)
+                        timepoints["last"] = str(new_last)
+        
+        print(f"    Filtered data to {len(filtered_viewsetups)} tiles for channel {channel}")
+        print(f"    Updated {len(filtered_registrations)} view registrations")
+        
+        # Log what was filtered
+        if "ImageLoader" in data["SpimData"]["SequenceDescription"]:
+            if "zarr" in data["SpimData"]["SequenceDescription"]["ImageLoader"]:
+                zarr_data = data["SpimData"]["SequenceDescription"]["ImageLoader"]["zarr"]
+                if "dataset" in zarr_data:
+                    datasets = zarr_data["dataset"]
+                    if not isinstance(datasets, list):
+                        datasets = [datasets]
+                    print(f"    Retained {len(datasets)} zarr dataset entries")
+
     def validate_transform_transfer(
         self,
         original_xml_path: str,
@@ -607,6 +790,8 @@ def split_multichannel_xml(xml_path: str, output_dir: str):
     """
     manager = BigStitcherXMLManager()
     return manager.split_multichannel_xml(xml_path, output_dir)
+
+    
 
 
 # Example usage
