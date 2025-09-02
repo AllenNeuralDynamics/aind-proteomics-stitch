@@ -467,41 +467,6 @@ class BigStitcherXMLManager:
         
         return channel_groups
     
-    def _filter_xml_to_channel(self, data: dict, viewsetup_ids: List[int]) -> None:
-        """
-        Filter XML data to only include specified ViewSetup IDs.
-        
-        Parameters
-        ----------
-        data : dict
-            XML data (modified in place)
-        viewsetup_ids : list
-            List of ViewSetup IDs to keep
-        """
-        # Filter ViewSetups
-        viewsetups = data["SpimData"]["SequenceDescription"]["ViewSetups"]["ViewSetup"]
-        if not isinstance(viewsetups, list):
-            viewsetups = [viewsetups]
-        
-        filtered_viewsetups = [
-            vs for vs in viewsetups 
-            if int(vs.get("id", -1)) in viewsetup_ids
-        ]
-        
-        data["SpimData"]["SequenceDescription"]["ViewSetups"]["ViewSetup"] = filtered_viewsetups
-        
-        # Filter ViewRegistrations
-        view_registrations = data["SpimData"]["ViewRegistrations"]["ViewRegistration"]
-        if not isinstance(view_registrations, list):
-            view_registrations = [view_registrations]
-        
-        filtered_registrations = [
-            vr for vr in view_registrations 
-            if int(vr.get("@setup", -1)) in viewsetup_ids
-        ]
-        
-        data["SpimData"]["ViewRegistrations"]["ViewRegistration"] = filtered_registrations
-    
     def _filter_xml_to_channel_complete(
         self, 
         data: dict, 
