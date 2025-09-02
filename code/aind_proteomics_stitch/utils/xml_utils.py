@@ -530,9 +530,13 @@ class BigStitcherXMLManager:
             viewsetups = [viewsetups]
         
         filtered_viewsetups = []
+        kept_tile_names = []  # Track which tiles we're keeping
         for vs in viewsetups:
             old_id = int(vs.get("id", -1))
             if old_id in viewsetup_ids:
+                # Store the tile name for later filtering
+                kept_tile_names.append(vs.get("name", ""))
+                
                 # Update ID if reindexing
                 vs["id"] = str(id_mapping[old_id])
                 
@@ -555,7 +559,7 @@ class BigStitcherXMLManager:
             if old_setup in viewsetup_ids:
                 # Update setup reference
                 vr["@setup"] = str(id_mapping[old_setup])
-                
+                               
                 filtered_registrations.append(vr)
         
         data["SpimData"]["ViewRegistrations"]["ViewRegistration"] = filtered_registrations
@@ -564,12 +568,34 @@ class BigStitcherXMLManager:
         if "SequenceDescription" in data["SpimData"] and "ImageLoader" in data["SpimData"]["SequenceDescription"]:
             image_loader = data["SpimData"]["SequenceDescription"]["ImageLoader"]
             
-            # Handle Zarr format
+            # Handle Zarr format with zgroups
             if "format" in image_loader and "zarr" in image_loader["format"].lower():
+                # Filter zgroups entries
+                if "zgroups" in image_loader:
+                    zgroups_data = image_loader["zgroups"]
+                    if "zgroup" in zgroups_data:
+                        zgroups = zgroups_data["zgroup"]
+                        if not isinstance(zgroups, list):
+                            zgroups = [zgroups]
+                        
+                        filtered_zgroups = []
+                        for zg in zgroups:
+                            # Check if this zgroup's setup is in our filtered list
+                            if "@setup" in zg:
+                                old_setup = int(zg["@setup"])
+                                if old_setup in viewsetup_ids:
+                                    # Update setup reference
+                                    zg["@setup"] = str(id_mapping[old_setup])
+                                    # Also update timepoint if needed
+                                    if "@timepoint" in zg:
+                                        zg["@timepoint"] = str(id_mapping[old_setup])
+                                    filtered_zgroups.append(zg)
+                        
+                        zgroups_data["zgroup"] = filtered_zgroups
+                
+                # Also handle legacy dataset entries if they exist
                 if "zarr" in image_loader:
                     zarr_data = image_loader["zarr"]
-                    
-                    # Filter dataset entries
                     if "dataset" in zarr_data:
                         datasets = zarr_data["dataset"]
                         if not isinstance(datasets, list):
@@ -577,19 +603,19 @@ class BigStitcherXMLManager:
                         
                         filtered_datasets = []
                         for ds in datasets:
-                            # Check if this dataset is for our channel
                             if "path" in ds and f"ch_{channel}" in ds["path"]:
-                                # Update setup reference if present
                                 if "@setup" in ds:
                                     old_setup = int(ds["@setup"])
                                     if old_setup in viewsetup_ids:
                                         ds["@setup"] = str(id_mapping[old_setup])
                                         filtered_datasets.append(ds)
                                 else:
-                                    # If no setup attribute, include if path matches channel
                                     filtered_datasets.append(ds)
                         
-                        zarr_data["dataset"] = filtered_datasets
+                        if filtered_datasets:
+                            zarr_data["dataset"] = filtered_datasets
+                        elif "dataset" in zarr_data:
+                            del zarr_data["dataset"]
         
         # 4. Filter ViewInterestPoints if present
         if "ViewInterestPoints" in data["SpimData"]:
@@ -612,17 +638,39 @@ class BigStitcherXMLManager:
                     # Remove empty ViewInterestPoints section
                     del data["SpimData"]["ViewInterestPoints"]
         
-        # 5. Update base path if it contains channel information
-        if "BasePath" in data["SpimData"]["SequenceDescription"]:
-            base_path = data["SpimData"]["SequenceDescription"]["BasePath"]
-            # You might want to update this to reflect single-channel output
-            # For now, keep it as is or add channel suffix
-            # base_path_new = f"{base_path}_ch_{channel}"
-            # data["SpimData"]["SequenceDescription"]["BasePath"] = base_path_new
-        
-        # 6. Update any Attributes that might reference multiple channels
+        # 5. Filter Tile Attributes to only include kept tiles
         if "Attributes" in data["SpimData"]["SequenceDescription"]["ViewSetups"]:
             attributes = data["SpimData"]["SequenceDescription"]["ViewSetups"]["Attributes"]
+            
+            # Filter Tile attributes
+            if isinstance(attributes, list):
+                for attr_section in attributes:
+                    if attr_section.get("@name") == "tile" and "Tile" in attr_section:
+                        tiles = attr_section["Tile"]
+                        if not isinstance(tiles, list):
+                            tiles = [tiles]
+                        filtered_tiles = []
+                        for tile in tiles:
+                            tile_name = tile.get("name", "")
+                            if tile_name in kept_tile_names:
+                                filtered_tiles.append(tile)
+                        attr_section["Tile"] = filtered_tiles
+            else:
+                # Handle non-list Attributes structure
+                if "Tile" in attributes:
+                    tiles = attributes["Tile"]
+                    if not isinstance(tiles, list):
+                        tiles = [tiles]
+                    
+                    filtered_tiles = []
+                    for tile in tiles:
+                        tile_name = tile.get("name", "")
+                        if tile_name in kept_tile_names:
+                            filtered_tiles.append(tile)
+                    
+                    attributes["Tile"] = filtered_tiles
+            
+            # Update Channel attributes to only show this channel
             if "Channel" in attributes[1]:
                 channels = attributes[1]["Channel"]
                 if not isinstance(channels, list):
@@ -634,19 +682,16 @@ class BigStitcherXMLManager:
                     if "name" in ch and str(channel) in ch["name"]:
                         matching_channel = ch
                         break
-                    elif "id" in ch:
-                        # Check associated ViewSetups
-                        ch_id = int(ch["id"])
-                        if ch_id in id_mapping.values():
-                            matching_channel = ch
-                            break
+                    elif "id" in ch and str(ch["id"]) == str(channel):
+                        matching_channel = ch
+                        break
                 
                 if matching_channel:
-                    # Keep only this channel
-                    matching_channel["id"] = str(channel)  # Single channel gets ID channel str
+                    # Keep only this channel with simplified ID
+                    matching_channel["id"] = str(channel)
                     attributes[1]["Channel"] = matching_channel
         
-        # 7. Clean up the total number of setups/timepoints if specified
+        # 6. Clean up the total number of setups/timepoints if specified
         if "SequenceDescription" in data["SpimData"]:
             seq_desc = data["SpimData"]["SequenceDescription"]
             
@@ -666,13 +711,22 @@ class BigStitcherXMLManager:
         
         # Log what was filtered
         if "ImageLoader" in data["SpimData"]["SequenceDescription"]:
-            if "zarr" in data["SpimData"]["SequenceDescription"]["ImageLoader"]:
-                zarr_data = data["SpimData"]["SequenceDescription"]["ImageLoader"]["zarr"]
-                if "dataset" in zarr_data:
-                    datasets = zarr_data["dataset"]
-                    if not isinstance(datasets, list):
-                        datasets = [datasets]
-                    print(f"    Retained {len(datasets)} zarr dataset entries")
+            if "zgroups" in data["SpimData"]["SequenceDescription"]["ImageLoader"]:
+                zgroups_data = data["SpimData"]["SequenceDescription"]["ImageLoader"]["zgroups"]
+                if "zgroup" in zgroups_data:
+                    zgroups = zgroups_data["zgroup"]
+                    if not isinstance(zgroups, list):
+                        zgroups = [zgroups]
+                    print(f"    Retained {len(zgroups)} zgroup entries")
+            
+            # Report on Tile filtering
+            if "Attributes" in data["SpimData"]["SequenceDescription"]["ViewSetups"]:
+                attributes = data["SpimData"]["SequenceDescription"]["ViewSetups"]["Attributes"]
+                if "Tile" in attributes:
+                    tiles = attributes["Tile"]
+                    if not isinstance(tiles, list):
+                        tiles = [tiles]
+                    print(f"    Filtered to {len(tiles)} tile attributes")
 
     def validate_transform_transfer(
         self,
