@@ -12,7 +12,7 @@ def combine_xmls():
     
 def split_xmls_to_single_channel_xmls():
     output_files = split_multichannel_xml(
-        xml_path="../data/stitching_cam_alignment_spot_channels.xml",
+        xml_path="../data/stitching_cam_alignment_forward_transform_spot_channels.xml",
         output_dir="../results/single_channel_xmls"
     )
     print(f"Created {len(output_files)} channel-specific XMLs")
