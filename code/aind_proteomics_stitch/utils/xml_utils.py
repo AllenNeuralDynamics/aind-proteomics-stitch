@@ -12,7 +12,6 @@ import json
 import xmltodict
 from collections import OrderedDict
 from typing import Optional, Dict, List, Tuple, Union
-import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import copy
 from pathlib import Path
