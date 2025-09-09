@@ -251,25 +251,27 @@ def create_bigstitcher_xml(
 
     # ZGroups
     zgroups = ET.SubElement(image_loader, "zgroups")
-    setup_id = 0
+    tile_id_map = {tile: idx for idx, tile in enumerate(unique_tiles)}
 
     # Create zgroups for each image
     for image in images:
         filename = image.get("file_name", "")
         if filename:
+            x, y, z = extract_tile_coordinates(filename)
+            tile_name = f"Tile_X_{x:04d}_Y_{y:04d}_Z_{z:04d}"
+
             zgroup = ET.SubElement(
-                zgroups, "zgroup", setup=str(setup_id), timepoint="0"
+                zgroups, "zgroup", setup=str(tile_id_map[tile_name]), timepoint="0"
             )
             path_elem = ET.SubElement(zgroup, "path")
             path_elem.text = filename
-            setup_id += 1
 
     # ViewSetups
     view_setups = ET.SubElement(seq_desc, "ViewSetups")
 
     # Create ViewSetup for each image
     setup_id = 0
-    tile_id_map = {tile: idx for idx, tile in enumerate(unique_tiles)}
+    
 
     for image in images:
         filename = image.get("file_name", "")
@@ -283,7 +285,7 @@ def create_bigstitcher_xml(
 
             # ID
             id_elem = ET.SubElement(view_setup, "id")
-            id_elem.text = str(setup_id)
+            id_elem.text = str(tile_id_map[tile_name]) #str(setup_id)
 
             # Name
             name_elem = ET.SubElement(view_setup, "name")
