@@ -2,8 +2,12 @@ from aind_proteomics_stitch.utils.xml_utils import transfer_stitching_to_multich
 
 def combine_xmls():
     output_big_stitcher_xml = '../results/bigstitcher.xml'
+    # output_big_stitcher_xml = '/results/bigstitcher.xml'
     CAMERA_ALIGNED_XML_PATH =  "../data/stitching_cam_alignment_forward_transform_spot_channels.xml"
+    # CAMERA_ALIGNED_XML_PATH =  "/data/stitching_cam_alignment_forward_transform_spot_channels.xml"
+
     COMBINED_XML_PATH = "../results/combined_stitching_cam_alignment_all_channels.xml"
+    # COMBINED_XML_PATH = "/results/combined_stitching_cam_alignment_all_channels.xml"
 
     try: 
         transfer_stitching_to_multichannel(single_channel_xml = output_big_stitcher_xml, 

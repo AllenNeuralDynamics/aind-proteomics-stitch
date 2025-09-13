@@ -1,6 +1,3 @@
-import xml.etree.ElementTree as ET
-
-
 # The approach we will be taking is collecting the affine transformations from the single -channel stitching results,
 # confirming the tile identity, and applying it to the appropriate tiles in the multichannel camera-corrected xml. 
 # the multichannel camera aligned xml will then be the main xml used for qc. We can also include a utility to break it up into 
@@ -819,9 +816,10 @@ if __name__ == "__main__":
     print("Example 1: Transfer stitching transforms")
     print("=" * 60)
     
+    #/root/capsule/data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56
     transfer_stitching_to_multichannel(
-        single_channel_xml="s3://aind-open-data/HCR_000000-s43_2025-07-24_13-00-00_processed_2025-08-28_22-50-35/image_tile_alignment/bigstitcher.xml",
-        multichannel_xml="s3://aind-open-data/HCR_000000-s43_2025-07-24_13-00-00_processed_2025-08-28_22-50-35/image_tile_alignment/stitching_cam_alignment_spot_channels.xml",
+        single_channel_xml="s3://aind-open-data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/image_tile_alignment/bigstitcher.xml",
+        multichannel_xml="s3://aind-open-data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/image_tile_alignment/stitching_cam_alignment_spot_channels.xml",
         output_xml="/scratch/multichannel_with_stitching.xml",
         # channels=[488, 561, 647]  # Optional: only apply to specific channels
     )
