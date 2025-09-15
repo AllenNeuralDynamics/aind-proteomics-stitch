@@ -370,14 +370,77 @@ class BigStitcherXMLManager:
         
         return tiles_updated
     
+    # def split_multichannel_xml(
+    #     self,
+    #     multichannel_xml_path: str,
+    #     output_dir: str,
+    #     output_prefix: str = "channel"
+    # ) -> Dict[int, str]:
+    #     """
+    #     Split a multichannel XML into individual channel XMLs.
+        
+    #     Parameters
+    #     ----------
+    #     multichannel_xml_path : str
+    #         Path to multichannel XML
+    #     output_dir : str
+    #         Directory for output XMLs
+    #     output_prefix : str
+    #         Prefix for output files (default: "channel")
+            
+    #     Returns
+    #     -------
+    #     dict
+    #         Mapping of channel wavelengths to output file paths
+    #     """
+    #     print("Loading multichannel XML...")
+    #     data = self.load_xml(multichannel_xml_path)
+        
+    #     # Group ViewSetups by channel
+    #     channel_groups = self._group_viewsetups_by_channel(data)
+        
+    #     print(f"Found {len(channel_groups)} channels to split")
+        
+    #     output_files = {}
+        
+    #     for channel, viewsetup_ids in channel_groups.items():
+    #         print(f"\nProcessing channel {channel} with {len(viewsetup_ids)} tiles...")
+            
+    #         # Create a copy for this channel
+    #         channel_data = copy.deepcopy(data)
+            
+    #         # Filter ViewSetups and ViewRegistrations
+    #         # self._filter_xml_to_channel(channel_data, viewsetup_ids)
+    #         reindex_tiles = False            
+    #         # Build ID mapping if reindexing
+    #         id_mapping = {}
+    #         if reindex_tiles:
+    #             for new_id, old_id in enumerate(sorted(viewsetup_ids)):
+    #                 id_mapping[old_id] = new_id
+    #             print(f"  Reindexing {len(id_mapping)} tiles starting from 0")
+    #         else:
+    #             # Identity mapping
+    #             id_mapping = {vid: vid for vid in viewsetup_ids}
+    #         self._filter_xml_to_channel_complete(channel_data, viewsetup_ids, id_mapping = id_mapping, channel = int(channel))
+            
+    #         # Save the channel-specific XML
+    #         output_path = f"{output_dir}/{output_prefix}_{channel}.xml"
+    #         self.save_xml(channel_data, output_path)
+    #         output_files[channel] = output_path
+            
+    #         print(f"  Saved channel {channel} to: {output_path}")
+        
+    #     return output_files
+
     def split_multichannel_xml(
         self,
         multichannel_xml_path: str,
         output_dir: str,
-        output_prefix: str = "channel"
+        output_prefix: str = "channel",
+        reindex_tiles: bool = False
     ) -> Dict[int, str]:
         """
-        Split a multichannel XML into individual channel XMLs.
+        Split a multichannel XML into individual channel XMLs with complete data cleanup.
         
         Parameters
         ----------
@@ -387,6 +450,8 @@ class BigStitcherXMLManager:
             Directory for output XMLs
         output_prefix : str
             Prefix for output files (default: "channel")
+        reindex_tiles : bool
+            If True, renumber ViewSetup IDs starting from 0. If False, keep original IDs.
             
         Returns
         -------
@@ -409,9 +474,6 @@ class BigStitcherXMLManager:
             # Create a copy for this channel
             channel_data = copy.deepcopy(data)
             
-            # Filter ViewSetups and ViewRegistrations
-            # self._filter_xml_to_channel(channel_data, viewsetup_ids)
-            reindex_tiles = False            
             # Build ID mapping if reindexing
             id_mapping = {}
             if reindex_tiles:
@@ -421,7 +483,14 @@ class BigStitcherXMLManager:
             else:
                 # Identity mapping
                 id_mapping = {vid: vid for vid in viewsetup_ids}
-            self._filter_xml_to_channel_complete(channel_data, viewsetup_ids, id_mapping = id_mapping, channel = int(channel))
+            
+            # Filter all XML sections for this channel
+            self._filter_xml_to_channel_complete(
+                channel_data, 
+                viewsetup_ids, 
+                id_mapping,
+                channel
+            )
             
             # Save the channel-specific XML
             output_path = f"{output_dir}/{output_prefix}_{channel}.xml"
@@ -431,6 +500,7 @@ class BigStitcherXMLManager:
             print(f"  Saved channel {channel} to: {output_path}")
         
         return output_files
+
     
     def _group_viewsetups_by_channel(self, data: dict) -> Dict[int, List[int]]:
         """
@@ -530,7 +600,7 @@ class BigStitcherXMLManager:
             image_loader = data["SpimData"]["SequenceDescription"]["ImageLoader"]
             
             # Handle Zarr format with zgroups
-            if "format" in image_loader and "zarr" in image_loader["format"].lower():
+            if "@format" in image_loader and "zarr" in image_loader["@format"].lower():
                 # Filter zgroups entries
                 if "zgroups" in image_loader:
                     zgroups_data = image_loader["zgroups"]
@@ -549,7 +619,7 @@ class BigStitcherXMLManager:
                                     zg["@setup"] = str(id_mapping[old_setup])
                                     # Also update timepoint if needed
                                     if "@timepoint" in zg:
-                                        zg["@timepoint"] = str(id_mapping[old_setup])
+                                        zg["@timepoint"] = "0"
                                     filtered_zgroups.append(zg)
                         
                         zgroups_data["zgroup"] = filtered_zgroups
@@ -804,7 +874,7 @@ def split_multichannel_xml(xml_path: str, output_dir: str):
         Mapping of channels to output files
     """
     manager = BigStitcherXMLManager()
-    return manager.split_multichannel_xml(xml_path, output_dir)
+    return manager.split_multichannel_xml(xml_path, output_dir, output_prefix = "channel", reindex_tiles = False)
 
     
 
@@ -812,17 +882,17 @@ def split_multichannel_xml(xml_path: str, output_dir: str):
 # Example usage
 if __name__ == "__main__":
     # Example 1: Transfer stitching transforms
-    print("=" * 60)
-    print("Example 1: Transfer stitching transforms")
-    print("=" * 60)
+    # print("=" * 60)
+    # print("Example 1: Transfer stitching transforms")
+    # print("=" * 60)
     
-    #/root/capsule/data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56
-    transfer_stitching_to_multichannel(
-        single_channel_xml="s3://aind-open-data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/image_tile_alignment/bigstitcher.xml",
-        multichannel_xml="s3://aind-open-data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/image_tile_alignment/stitching_cam_alignment_spot_channels.xml",
-        output_xml="/scratch/multichannel_with_stitching.xml",
-        # channels=[488, 561, 647]  # Optional: only apply to specific channels
-    )
+    # #/root/capsule/data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56
+    # transfer_stitching_to_multichannel(
+    #     single_channel_xml="s3://aind-open-data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/image_tile_alignment/bigstitcher.xml",
+    #     multichannel_xml="s3://aind-open-data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/image_tile_alignment/stitching_cam_alignment_spot_channels.xml",
+    #     output_xml="/scratch/multichannel_with_stitching.xml",
+    #     # channels=[488, 561, 647]  # Optional: only apply to specific channels
+    # )
     
     # Example 2: Split multichannel XML
     print("\n" + "=" * 60)
@@ -830,7 +900,7 @@ if __name__ == "__main__":
     print("=" * 60)
     
     output_files = split_multichannel_xml(
-        xml_path="/scratch/multichannel_with_stitching.xml",
+        xml_path="/root/capsule/data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/stitching/combined_stitching_cam_alignment_all_channels.xml",
         output_dir="/scratch/single_channel_xmls"
     )
     print(f"Created {len(output_files)} channel-specific XMLs")
