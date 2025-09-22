@@ -124,7 +124,7 @@ def get_stitching_dict(
     """
     # assert pathlib.Path(dataset_xml_path).exists()
 
-    max_shift = 100 // (downsample + 1)
+    max_shift = 160 // (downsample + 1)
     stitching_dict = {
         "session_id": str(specimen_id),
         "memgb": 100,
