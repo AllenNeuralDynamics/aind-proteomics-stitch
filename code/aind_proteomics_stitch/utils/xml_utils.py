@@ -293,7 +293,14 @@ class BigStitcherXMLManager:
             
             if len(transforms) > transform_index:
                 # Store the specified transform
-                if transforms[transform_index]['Name'] == "Stitching Transform":
+
+                #support rhapso bigstitcher naming: 
+                if "RigidModel3D" in transforms[transform_index]['Name']: 
+                    transform_map[tile_name] = transforms[transform_index]
+                elif "AffineModel3D" in transforms[transform_index]['Name']: 
+                    transform_map[tile_name] = transforms[transform_index]
+                # supports bigstitcher transform naming
+                elif transforms[transform_index]['Name'] == "Stitching Transform":
                     transform_map[tile_name] = transforms[transform_index]
                 elif transforms[0]['Name'] == "Stitching Transform":
                     transform_map[tile_name] = transforms[0]
@@ -358,7 +365,7 @@ class BigStitcherXMLManager:
                         
                         # Append the stitching transform
                         new_transform = copy.deepcopy(transform_map[tile_name])
-                        new_transform["Name"] = f"Stitching Transform from Single Channel"
+                        # new_transform["Name"] = f"Stitching Transform from Single Channel"
                         
                         # Add to transform list
                         existing_transforms.append(new_transform)
@@ -893,17 +900,44 @@ if __name__ == "__main__":
     #     output_xml="/scratch/multichannel_with_stitching.xml",
     #     # channels=[488, 561, 647]  # Optional: only apply to specific channels
     # )
+    data_folder = '/data'
+    scratch_folder = '/scratch'
+    results_folder = '/results'
+    average_stitching_xml_path = f"{data_folder}/rhapso-solver-affine.xml"
+    multichannel_xml_path =     f"{data_folder}/HCR_000000-s43_2025-07-24_13-00-00_processed_2025-09-18_01-23-50_rhapso/stitching_cam_alignment_spot_channels.xml"
+    temp_xml_path =             f"{scratch_folder}/combined_camera_aligned_rhapso_channel_average.xml"
+    output_xml_path =           f"{results_folder}/combined_camera_aligned_rhapso_channel_average.xml"
     
-    # Example 2: Split multichannel XML
-    print("\n" + "=" * 60)
-    print("Example 2: Split multichannel XML")
-    print("=" * 60)
-    
-    output_files = split_multichannel_xml(
-        xml_path="/root/capsule/data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/stitching/combined_stitching_cam_alignment_all_channels.xml",
-        output_dir="/scratch/single_channel_xmls"
+
+    manager = BigStitcherXMLManager()
+    manager.transfer_stitching_transforms(
+        average_stitching_xml_path,
+        multichannel_xml_path,
+        temp_xml_path,
+        transform_index=1,  # Second transform (rigid)
+        channels_to_apply=None
     )
-    print(f"Created {len(output_files)} channel-specific XMLs")
+    manager.transfer_stitching_transforms(
+        average_stitching_xml_path,
+        temp_xml_path,
+        output_xml_path,
+        transform_index=0,  # Second transform (affine)
+        channels_to_apply=None
+    )
+
+
+
+
+    # Example 2: Split multichannel XML
+    # print("\n" + "=" * 60)
+    # print("Example 2: Split multichannel XML")
+    # print("=" * 60)
+    
+    # output_files = split_multichannel_xml(
+    #     xml_path="/root/capsule/data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/stitching/combined_stitching_cam_alignment_all_channels.xml",
+    #     output_dir="/scratch/single_channel_xmls"
+    # )
+    # print(f"Created {len(output_files)} channel-specific XMLs")
     
     # Example 3: Validate transform transfer
     # print("\n" + "=" * 60)
