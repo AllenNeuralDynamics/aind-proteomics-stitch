@@ -1373,8 +1373,8 @@ if __name__ == "__main__":
     #             transform_index=0,  # Second transform (affine)
     #             channels_to_apply=None
     #         )
-    single_stitching_xml_path = "/root/capsule/data/rhapso-solver-affine (20).xml"
-    multichannel_xml_path =     f"/root/capsule/data/stitching_cam_alignment_spot_channels (7).xml"
+    single_stitching_xml_path = "/root/capsule/data/rhapso-solver-affine (23).xml"
+    multichannel_xml_path =     f"/root/capsule/data/stitching_cam_alignment_spot_channels (8).xml"
     temp_xml_path =             f"{scratch_folder}/combined_camera_aligned_rhapso_channel_average.xml"
     output_xml_path =           f"{results_folder}/combined_camera_aligned_rhapso_channel_average.xml"
 
