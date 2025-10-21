@@ -1,11 +1,3 @@
-import xml.etree.ElementTree as ET
-
-
-# The approach we will be taking is collecting the affine transformations from the single -channel stitching results,
-# confirming the tile identity, and applying it to the appropriate tiles in the multichannel camera-corrected xml. 
-# the multichannel camera aligned xml will then be the main xml used for qc. We can also include a utility to break it up into 
-# individual channels if that would be helpful. 
-
 import boto3
 import re
 import json
@@ -296,7 +288,14 @@ class BigStitcherXMLManager:
             
             if len(transforms) > transform_index:
                 # Store the specified transform
-                if transforms[transform_index]['Name'] == "Stitching Transform":
+
+                #support rhapso bigstitcher naming: 
+                if "RigidModel3D" in transforms[transform_index]['Name']: 
+                    transform_map[tile_name] = transforms[transform_index]
+                elif "AffineModel3D" in transforms[transform_index]['Name']: 
+                    transform_map[tile_name] = transforms[transform_index]
+                # supports bigstitcher transform naming
+                elif transforms[transform_index]['Name'] == "Stitching Transform":
                     transform_map[tile_name] = transforms[transform_index]
                 elif transforms[0]['Name'] == "Stitching Transform":
                     transform_map[tile_name] = transforms[0]
@@ -359,12 +358,12 @@ class BigStitcherXMLManager:
                         if not isinstance(existing_transforms, list):
                             existing_transforms = [existing_transforms]
                         
-                        # Append the stitching transform
+                        # Prepend the stitching transform
                         new_transform = copy.deepcopy(transform_map[tile_name])
-                        new_transform["Name"] = f"Stitching Transform from Single Channel"
+                        # new_transform["Name"] = f"Stitching Transform from Single Channel"
                         
-                        # Add to transform list
-                        existing_transforms.append(new_transform)
+                        # Add to beginning of transform list
+                        existing_transforms.insert(0, new_transform)
                         view_reg["ViewTransform"] = existing_transforms
                         
                         tiles_updated += 1
@@ -414,7 +413,7 @@ class BigStitcherXMLManager:
             
             # Filter ViewSetups and ViewRegistrations
             # self._filter_xml_to_channel(channel_data, viewsetup_ids)
-            reindex_tiles = False            
+            reindex_tiles = True            
             # Build ID mapping if reindexing
             id_mapping = {}
             if reindex_tiles:
@@ -533,7 +532,7 @@ class BigStitcherXMLManager:
             image_loader = data["SpimData"]["SequenceDescription"]["ImageLoader"]
             
             # Handle Zarr format with zgroups
-            if "format" in image_loader and "zarr" in image_loader["format"].lower():
+            if "@format" in image_loader and "zarr" in image_loader["@format"].lower():
                 # Filter zgroups entries
                 if "zgroups" in image_loader:
                     zgroups_data = image_loader["zgroups"]
@@ -552,7 +551,7 @@ class BigStitcherXMLManager:
                                     zg["@setup"] = str(id_mapping[old_setup])
                                     # Also update timepoint if needed
                                     if "@timepoint" in zg:
-                                        zg["@timepoint"] = str(id_mapping[old_setup])
+                                        zg["@timepoint"] = "0"
                                     filtered_zgroups.append(zg)
                         
                         zgroups_data["zgroup"] = filtered_zgroups
@@ -616,7 +615,10 @@ class BigStitcherXMLManager:
                         filtered_tiles = []
                         for tile in tiles:
                             tile_name = tile.get("name", "")
-                            if tile_name in kept_tile_names:
+                            original_tile_id = int(tile.get("id", -1))
+
+                            if tile_name in kept_tile_names and original_tile_id in id_mapping:
+                                tile["id"] = str(id_mapping[original_tile_id])
                                 filtered_tiles.append(tile)
                         attr_section["Tile"] = filtered_tiles
             else:
@@ -758,6 +760,488 @@ class BigStitcherXMLManager:
         
         return results
 
+    def merge_single_channel_xmls(
+        self,
+        single_channel_xml_paths: Dict[int, str],
+        output_xml_path: str,
+        base_xml_path: Optional[str] = None
+    ) -> None:
+        """
+        Merge multiple single-channel XML files into a multichannel XML.
+        
+        Parameters
+        ----------
+        single_channel_xml_paths : dict
+            Mapping of channel wavelengths to XML file paths
+            e.g., {488: "channel_488.xml", 561: "channel_561.xml", 647: "channel_647.xml"}
+        output_xml_path : str
+            Path for output multichannel XML
+        base_xml_path : str, optional
+            Path to a base XML to use as template (uses first channel if not provided)
+        """
+        print(f"Merging {len(single_channel_xml_paths)} single-channel XMLs into multichannel...")
+        
+        # Sort channels for consistent ordering
+        sorted_channels = sorted(single_channel_xml_paths.keys())
+        
+        # Load all single-channel XMLs
+        channel_data = {}
+        for channel in sorted_channels:
+            print(f"  Loading channel {channel} from {single_channel_xml_paths[channel]}")
+            channel_data[channel] = self.load_xml(single_channel_xml_paths[channel])
+        
+        # Use base XML or first channel as template
+        if base_xml_path:
+            print(f"Using base XML template: {base_xml_path}")
+            merged_data = self.load_xml(base_xml_path)
+        else:
+            first_channel = sorted_channels[0]
+            print(f"Using channel {first_channel} as template")
+            merged_data = copy.deepcopy(channel_data[first_channel])
+        
+        # Build ID mapping for each channel
+        id_offset = 0
+        channel_id_mappings = {}
+        
+        for channel in sorted_channels:
+            data = channel_data[channel]
+            viewsetups = data["SpimData"]["SequenceDescription"]["ViewSetups"]["ViewSetup"]
+            if not isinstance(viewsetups, list):
+                viewsetups = [viewsetups]
+            
+            # Create mapping from old IDs to new sequential IDs
+            old_ids = sorted([int(vs.get("id", -1)) for vs in viewsetups])
+            id_mapping = {}
+            for old_id in old_ids:
+                id_mapping[old_id] = id_offset
+                id_offset += 1
+            
+            channel_id_mappings[channel] = id_mapping
+            print(f"  Channel {channel}: {len(id_mapping)} tiles, IDs {min(id_mapping.values())}-{max(id_mapping.values())}")
+        
+        # Merge ViewSetups
+        print("\nMerging ViewSetups...")
+        merged_viewsetups = []
+        
+        for channel in sorted_channels:
+            data = channel_data[channel]
+            id_mapping = channel_id_mappings[channel]
+            
+            viewsetups = data["SpimData"]["SequenceDescription"]["ViewSetups"]["ViewSetup"]
+            if not isinstance(viewsetups, list):
+                viewsetups = [viewsetups]
+            
+            for vs in viewsetups:
+                # Create a copy to avoid modifying original
+                vs_copy = copy.deepcopy(vs)
+                
+                # Update IDs
+                old_id = int(vs_copy.get("id", -1))
+                new_id = id_mapping[old_id]
+                vs_copy["id"] = str(new_id)
+                
+                # Update tile attribute
+                if "attributes" in vs_copy and "tile" in vs_copy["attributes"]:
+                    vs_copy["attributes"]["tile"] = str(new_id)
+                
+                # Ensure channel attribute is set correctly
+                if "attributes" in vs_copy:
+                    vs_copy["attributes"]["channel"] = str(channel)
+                
+                # Update name to include channel if not already present
+                name = vs_copy.get("name", "")
+                if f"ch_{channel}" not in name and f"CH_{channel}" not in name:
+                    # Extract tile position and add channel
+                    tile_pattern = r"(Tile_X_\d+_Y_\d+_Z_\d+)"
+                    match = re.search(tile_pattern, name)
+                    if match:
+                        tile_name = match.group(1)
+                        vs_copy["name"] = f"{tile_name}_ch_{channel}.ome.zarr"
+                    else:
+                        vs_copy["name"] = f"{name}_ch_{channel}"
+                
+                merged_viewsetups.append(vs_copy)
+        
+        merged_data["SpimData"]["SequenceDescription"]["ViewSetups"]["ViewSetup"] = merged_viewsetups
+        print(f"  Merged {len(merged_viewsetups)} total ViewSetups")
+        
+        # Merge ViewRegistrations
+        print("\nMerging ViewRegistrations...")
+        merged_registrations = []
+        
+        for channel in sorted_channels:
+            data = channel_data[channel]
+            id_mapping = channel_id_mappings[channel]
+            
+            view_registrations = data["SpimData"]["ViewRegistrations"]["ViewRegistration"]
+            if not isinstance(view_registrations, list):
+                view_registrations = [view_registrations]
+            
+            for vr in view_registrations:
+                # Create a copy
+                vr_copy = copy.deepcopy(vr)
+                
+                # Update setup reference
+                old_setup = int(vr_copy.get("@setup", -1))
+                if old_setup in id_mapping:
+                    vr_copy["@setup"] = str(id_mapping[old_setup])
+                    merged_registrations.append(vr_copy)
+        
+        merged_data["SpimData"]["ViewRegistrations"]["ViewRegistration"] = merged_registrations
+        print(f"  Merged {len(merged_registrations)} total ViewRegistrations")
+        
+        # Merge ImageLoader paths
+        print("\nMerging ImageLoader paths...")
+        self._merge_image_loader_paths(merged_data, channel_data, channel_id_mappings, sorted_channels)
+        
+        # Merge Attributes
+        print("\nMerging Attributes...")
+        self._merge_attributes(merged_data, channel_data, channel_id_mappings, sorted_channels)
+        
+        # Merge ViewInterestPoints if present
+        self._merge_view_interest_points(merged_data, channel_data, channel_id_mappings, sorted_channels)
+        
+        # Save the merged XML
+        self.save_xml(merged_data, output_xml_path)
+        print(f"\nSuccessfully merged {len(sorted_channels)} channels into: {output_xml_path}")
+
+    def _merge_image_loader_paths(
+        self,
+        merged_data: dict,
+        channel_data: Dict[int, dict],
+        channel_id_mappings: Dict[int, Dict[int, int]],
+        sorted_channels: List[int]
+    ) -> None:
+        """
+        Merge ImageLoader paths from all channels.
+        """
+        image_loader = merged_data["SpimData"]["SequenceDescription"].get("ImageLoader", {})
+        
+        # Handle Zarr format with zgroups
+        if "@format" in image_loader and "zarr" in image_loader["@format"].lower():
+            merged_zgroups = []
+            
+            for channel in sorted_channels:
+                data = channel_data[channel]
+                id_mapping = channel_id_mappings[channel]
+                
+                if "ImageLoader" in data["SpimData"]["SequenceDescription"]:
+                    channel_loader = data["SpimData"]["SequenceDescription"]["ImageLoader"]
+                    
+                    if "zgroups" in channel_loader and "zgroup" in channel_loader["zgroups"]:
+                        zgroups = channel_loader["zgroups"]["zgroup"]
+                        if not isinstance(zgroups, list):
+                            zgroups = [zgroups]
+                        
+                        for zg in zgroups:
+                            zg_copy = copy.deepcopy(zg)
+                            
+                            # Update setup reference
+                            if "@setup" in zg_copy:
+                                old_setup = int(zg_copy["@setup"])
+                                if old_setup in id_mapping:
+                                    zg_copy["@setup"] = str(id_mapping[old_setup])
+                            
+                            # Ensure path includes channel information
+                            path = zg_copy.get("path", "")
+                            if f"ch_{channel}" not in path and f"CH_{channel}" not in path:
+                                # Add channel to path if not present
+                                if path.endswith(".ome.zarr"):
+                                    base_path = path[:-9]  # Remove .ome.zarr
+                                    zg_copy["path"] = f"{base_path}_ch_{channel}.ome.zarr"
+                                else:
+                                    zg_copy["path"] = f"{path}_ch_{channel}"
+                            
+                            merged_zgroups.append(zg_copy)
+            
+            # Update merged data
+            if "zgroups" not in image_loader:
+                image_loader["zgroups"] = {}
+            image_loader["zgroups"]["zgroup"] = merged_zgroups
+            print(f"  Merged {len(merged_zgroups)} zgroup entries")
+
+    def _merge_attributes(
+        self,
+        merged_data: dict,
+        channel_data: Dict[int, dict],
+        channel_id_mappings: Dict[int, Dict[int, int]],
+        sorted_channels: List[int]
+    ) -> None:
+        """
+        Merge Attributes sections from all channels.
+        """
+        # Get or create Attributes section
+        if "Attributes" not in merged_data["SpimData"]["SequenceDescription"]["ViewSetups"]:
+            merged_data["SpimData"]["SequenceDescription"]["ViewSetups"]["Attributes"] = []
+        
+        attributes = merged_data["SpimData"]["SequenceDescription"]["ViewSetups"]["Attributes"]
+        if not isinstance(attributes, list):
+            attributes = [attributes]
+        
+        # Find or create each attribute type
+        tile_attr = None
+        channel_attr = None
+        
+        for attr in attributes:
+            if attr.get("@name") == "tile":
+                tile_attr = attr
+            elif attr.get("@name") == "channel":
+                channel_attr = attr
+        
+        # Merge Tiles
+        merged_tiles = []
+        tile_names_seen = set()
+        
+        for channel in sorted_channels:
+            data = channel_data[channel]
+            id_mapping = channel_id_mappings[channel]
+            
+            if "Attributes" in data["SpimData"]["SequenceDescription"]["ViewSetups"]:
+                attrs = data["SpimData"]["SequenceDescription"]["ViewSetups"]["Attributes"]
+                if not isinstance(attrs, list):
+                    attrs = [attrs]
+                
+                for attr in attrs:
+                    if attr.get("@name") == "tile" or "Tile" in attr:
+                        tiles = attr.get("Tile", [])
+                        if not isinstance(tiles, list):
+                            tiles = [tiles]
+                        
+                        for tile in tiles:
+                            tile_copy = copy.deepcopy(tile)
+                            
+                            # Update tile ID
+                            old_id = int(tile.get("id", -1))
+                            if old_id in id_mapping:
+                                tile_copy["id"] = str(id_mapping[old_id])
+                                
+                                # Update name to include channel if needed
+                                name = tile_copy.get("name", "")
+                                if f"ch_{channel}" not in name and f"CH_{channel}" not in name:
+                                    tile_pattern = r"(Tile_X_\d+_Y_\d+_Z_\d+)"
+                                    match = re.search(tile_pattern, name)
+                                    if match:
+                                        tile_pos = match.group(1)
+                                        tile_copy["name"] = f"{tile_pos}_ch_{channel}.ome.zarr"
+                                
+                                # Only add if we haven't seen this exact tile position/channel combo
+                                tile_key = (tile_copy.get("name", ""), channel)
+                                if tile_key not in tile_names_seen:
+                                    merged_tiles.append(tile_copy)
+                                    tile_names_seen.add(tile_key)
+        
+        # Update or create tile attribute
+        if tile_attr:
+            tile_attr["Tile"] = merged_tiles
+        else:
+            attributes.append({
+                "@name": "tile",
+                "Tile": merged_tiles
+            })
+        
+        # Merge Channels
+        merged_channels = []
+        for channel in sorted_channels:
+            merged_channels.append({
+                "id": str(channel),
+                "name": str(channel)
+            })
+        
+        # Update or create channel attribute
+        if channel_attr:
+            channel_attr["Channel"] = merged_channels
+        else:
+            attributes.append({
+                "@name": "channel",
+                "Channel": merged_channels
+            })
+        
+        merged_data["SpimData"]["SequenceDescription"]["ViewSetups"]["Attributes"] = attributes
+        print(f"  Merged {len(merged_tiles)} tiles and {len(merged_channels)} channels in Attributes")
+
+    def _merge_view_interest_points(
+        self,
+        merged_data: dict,
+        channel_data: Dict[int, dict],
+        channel_id_mappings: Dict[int, Dict[int, int]],
+        sorted_channels: List[int]
+    ) -> None:
+        """
+        Merge ViewInterestPoints if present in any channel.
+        """
+        merged_vips = []
+        
+        for channel in sorted_channels:
+            data = channel_data[channel]
+            id_mapping = channel_id_mappings[channel]
+            
+            if "ViewInterestPoints" in data["SpimData"]:
+                vip = data["SpimData"]["ViewInterestPoints"]
+                
+                # Handle both ViewInterestPoint and ViewInterestPointsFile formats
+                if "ViewInterestPoint" in vip:
+                    view_interest_points = vip["ViewInterestPoint"]
+                    if not isinstance(view_interest_points, list):
+                        view_interest_points = [view_interest_points]
+                    
+                    for vip_entry in view_interest_points:
+                        vip_copy = copy.deepcopy(vip_entry)
+                        old_setup = int(vip_copy.get("@setup", -1))
+                        if old_setup in id_mapping:
+                            vip_copy["@setup"] = str(id_mapping[old_setup])
+                            merged_vips.append(vip_copy)
+                
+                elif "ViewInterestPointsFile" in vip:
+                    vip_files = vip["ViewInterestPointsFile"]
+                    if not isinstance(vip_files, list):
+                        vip_files = [vip_files]
+                    
+                    for vip_file in vip_files:
+                        vip_copy = copy.deepcopy(vip_file)
+                        if "@setup" in vip_copy:
+                            old_setup = int(vip_copy["@setup"])
+                            if old_setup in id_mapping:
+                                vip_copy["@setup"] = str(id_mapping[old_setup])
+                                
+                                # Update the file path to reflect new ID
+                                if "#text" in vip_copy:
+                                    old_path = vip_copy["#text"]
+                                    # Replace old viewSetupId with new one
+                                    new_path = re.sub(
+                                        f"viewSetupId_{old_setup}",
+                                        f"viewSetupId_{id_mapping[old_setup]}",
+                                        old_path
+                                    )
+                                    vip_copy["#text"] = new_path
+                                
+                                merged_vips.append(vip_copy)
+        
+        # Add merged ViewInterestPoints if any exist
+        if merged_vips:
+            if "ViewInterestPoints" not in merged_data["SpimData"]:
+                merged_data["SpimData"]["ViewInterestPoints"] = {}
+            
+            # Determine format based on first entry
+            if merged_vips and "@setup" in merged_vips[0]:
+                merged_data["SpimData"]["ViewInterestPoints"]["ViewInterestPointsFile"] = merged_vips
+            else:
+                merged_data["SpimData"]["ViewInterestPoints"]["ViewInterestPoint"] = merged_vips
+            
+            print(f"  Merged {len(merged_vips)} ViewInterestPoints")
+
+
+def discover_channel_xmls(
+    data_dir: str = "/data/",
+    xml_filename: str = "rhapso-solver-affine.xml"
+) -> Dict[int, str]:
+    """
+    Discover channel XML files by scanning directory structure.
+    
+    Looks for folders matching the pattern 'ch_{wavelength}' and builds
+    a dictionary mapping wavelengths to XML file paths.
+    
+    Parameters
+    ----------
+    data_dir : str
+        Root directory to search in (default: "/data/")
+    xml_filename : str
+        Name of the XML file in each channel folder (default: "rhapso-solver-affine.xml")
+
+    
+    Returns
+    -------
+    dict
+        Mapping of channel wavelengths (int) to XML file paths (str)
+        e.g., {488: "/data/ch_488/rhapso-solver-affine.xml", ...}
+    
+    Examples
+    --------
+    >>> # Basic usage
+    >>> channel_xmls = discover_channel_xmls()
+    >>> print(channel_xmls)
+    {488: '/data/ch_488/rhapso-solver-affine.xml', 
+     561: '/data/ch_561/rhapso-solver-affine.xml',
+     647: '/data/ch_647/rhapso-solver-affine.xml'}
+    
+    >>> # Then use with merge function
+    >>> merge_single_channel_xmls_to_multichannel(
+    ...     channel_xml_paths=channel_xmls,
+    ...     output_xml="/scratch/merged_multichannel.xml"
+    ... )
+    """
+    channel_pattern: str = r"^ch_(\d+)$"
+    channel_xml_paths = {}
+    
+    # Convert to Path object for easier manipulation
+    data_path = Path(data_dir)
+    
+    # Check if data directory exists
+    if not data_path.exists():
+        print(f"Warning: Directory {data_dir} does not exist")
+        return channel_xml_paths
+    
+    if not data_path.is_dir():
+        print(f"Warning: {data_dir} is not a directory")
+        return channel_xml_paths
+    
+    # Compile the pattern for efficiency
+    pattern = re.compile(channel_pattern)
+    
+    # Scan for channel directories
+    print(f"Scanning {data_dir} for channel folders...")
+    
+    for item in sorted(data_path.iterdir()):
+        if item.is_dir():
+            # Check if folder name matches channel pattern
+            match = pattern.match(item.name)
+            if match:
+                # Extract wavelength from folder name
+                wavelength = int(match.group(1))
+                
+                # Check if XML file exists in this folder
+                xml_path = item / xml_filename
+                
+                if xml_path.exists():
+                    channel_xml_paths[wavelength] = str(xml_path)
+                    print(f"  Found channel {wavelength}: {xml_path}")
+                else:
+                    print(f"  Warning: No {xml_filename} found in {item}")
+    
+    # Summary
+    if channel_xml_paths:
+        channels = sorted(channel_xml_paths.keys())
+        print(f"\nDiscovered {len(channels)} channels: {channels}")
+    else:
+        print(f"\nNo channel folders found matching pattern '{channel_pattern}' in {data_dir}")
+    
+    return channel_xml_paths
+
+
+# Convenience function for merging
+def merge_single_channel_xmls_to_multichannel(
+    channel_xml_paths: Dict[int, str],
+    output_xml: str,
+    base_xml: Optional[str] = None
+):
+    """
+    Convenience function to merge single-channel XMLs into multichannel.
+    
+    Parameters
+    ----------
+    channel_xml_paths : dict
+        Mapping of channel wavelengths to XML paths
+        e.g., {488: "channel_488.xml", 561: "channel_561.xml"}
+    output_xml : str
+        Output path for merged multichannel XML
+    base_xml : str, optional
+        Optional base XML to use as template
+    """
+    manager = BigStitcherXMLManager()
+    manager.merge_single_channel_xmls(
+        channel_xml_paths,
+        output_xml,
+        base_xml
+    )
 
 # Convenience functions for common operations
 def transfer_stitching_to_multichannel(
@@ -814,28 +1298,41 @@ def split_multichannel_xml(xml_path: str, output_dir: str):
 
 # Example usage
 if __name__ == "__main__":
-    # Example 1: Transfer stitching transforms
-    print("=" * 60)
-    print("Example 1: Transfer stitching transforms")
-    print("=" * 60)
+    # # Example 1: Transfer stitching transforms
+    # print("=" * 60)
+    # print("Example 1: Transfer stitching transforms")
+    # print("=" * 60)
     
-    transfer_stitching_to_multichannel(
-        single_channel_xml="s3://aind-open-data/HCR_000000-s43_2025-07-24_13-00-00_processed_2025-08-28_22-50-35/image_tile_alignment/bigstitcher.xml",
-        multichannel_xml="s3://aind-open-data/HCR_000000-s43_2025-07-24_13-00-00_processed_2025-08-28_22-50-35/image_tile_alignment/stitching_cam_alignment_spot_channels.xml",
-        output_xml="/scratch/multichannel_with_stitching.xml",
-        # channels=[488, 561, 647]  # Optional: only apply to specific channels
-    )
+    # #/root/capsule/data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56
+    # transfer_stitching_to_multichannel(
+    #     single_channel_xml="s3://aind-open-data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/image_tile_alignment/bigstitcher.xml",
+    #     multichannel_xml="s3://aind-open-data/HCR_000000-s49_2025-08-13_13-00-00_processed_2025-09-10_22-57-56/image_tile_alignment/stitching_cam_alignment_spot_channels.xml",
+    #     output_xml="/scratch/multichannel_with_stitching.xml",
+    #     # channels=[488, 561, 647]  # Optional: only apply to specific channels
+    # )
     
-    # Example 2: Split multichannel XML
-    print("\n" + "=" * 60)
-    print("Example 2: Split multichannel XML")
-    print("=" * 60)
+    # # Example 2: Split multichannel XML
+    # print("\n" + "=" * 60)
+    # print("Example 2: Split multichannel XML")
+    # print("=" * 60)
     
-    output_files = split_multichannel_xml(
-        xml_path="/scratch/multichannel_with_stitching.xml",
-        output_dir="/scratch/single_channel_xmls"
-    )
-    print(f"Created {len(output_files)} channel-specific XMLs")
+    # output_files = split_multichannel_xml(
+    #     xml_path="/scratch/multichannel_with_stitching.xml",
+    #     output_dir="/scratch/single_channel_xmls"
+    # )
+    # print(f"Created {len(output_files)} channel-specific XMLs")
+
+    # merge_single_channel_xmls_to_multichannel(
+    channel_xml_paths={
+            405: "/root/capsule/data/ch_405/rhapso-solver-affine.xml",
+            488: "/root/capsule/data/ch_488/rhapso-solver-affine.xml", 
+            514: "/root/capsule/data/ch_514/rhapso-solver-affine.xml",
+            561: "/root/capsule/data/ch_561/rhapso-solver-affine.xml",
+            594: "/root/capsule/data/ch_594/rhapso-solver-affine.xml", 
+            638: "/root/capsule/data/ch_638/rhapso-solver-affine.xml"
+    }
+        # output_xml="/scratch/merged_multichannel.xml"
+    # )
     
     # Example 3: Validate transform transfer
     # print("\n" + "=" * 60)
@@ -850,3 +1347,50 @@ if __name__ == "__main__":
     # print(f"Validation results:")
     # print(f"  Total tiles: {validation['total_tiles']}")
     # print(f"  Tiles with new transforms: {validation['tiles_with_new_transforms']}")
+    data_folder = '/data'
+    scratch_folder = '/scratch'
+    results_folder = '/results'
+    # for ch, fp in channel_xml_paths.items():
+
+    #         single_stitching_xml_path = fp
+    #         multichannel_xml_path =     f"/root/capsule/data/stitching_cam_alignment_spot_channels (7).xml"
+    #         temp_xml_path =             f"{scratch_folder}/combined_camera_aligned_rhapso_channel_{ch}.xml"
+    #         output_xml_path =           f"{results_folder}/combined_camera_aligned_rhapso_channel_{ch}.xml"
+        
+    #         manager = BigStitcherXMLManager()
+
+    #         manager.transfer_stitching_transforms(
+    #             single_stitching_xml_path,
+    #             multichannel_xml_path,
+    #             temp_xml_path,
+    #             transform_index=1,  # First transform (rigid)
+    #             channels_to_apply=None
+    #         )
+    #         manager.transfer_stitching_transforms(
+    #             single_stitching_xml_path,
+    #             temp_xml_path,
+    #             output_xml_path,
+    #             transform_index=0,  # Second transform (affine)
+    #             channels_to_apply=None
+    #         )
+    single_stitching_xml_path = "/root/capsule/data/rhapso-solver-affine (23).xml"
+    multichannel_xml_path =     f"/root/capsule/data/stitching_cam_alignment_spot_channels (8).xml"
+    temp_xml_path =             f"{scratch_folder}/combined_camera_aligned_rhapso_channel_average.xml"
+    output_xml_path =           f"{results_folder}/combined_camera_aligned_rhapso_channel_average.xml"
+
+    manager = BigStitcherXMLManager()
+
+    manager.transfer_stitching_transforms(
+        single_stitching_xml_path,
+        multichannel_xml_path,
+        temp_xml_path,
+        transform_index=1,  # First transform (rigid)
+        channels_to_apply=None)
+
+    manager.transfer_stitching_transforms(
+        single_stitching_xml_path,
+        temp_xml_path,
+        output_xml_path,
+        transform_index=0,  # Second transform (affine)
+        channels_to_apply=None
+    )
