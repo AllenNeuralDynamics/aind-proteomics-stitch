@@ -101,7 +101,8 @@ def get_data_config(
 
 
 def get_stitching_dict(
-    specimen_id: str, dataset_xml_path: str, downsample: Optional[int] = 2
+    specimen_id: str, dataset_xml_path: str, downsample: Optional[int] = 1, 
+    ip_sigma: float = 1.5, ip_threshold: float = 0.010,
 ) -> dict:
     """
     A function that writes a stitching dictioonary that will be used for
@@ -126,20 +127,46 @@ def get_stitching_dict(
 
     max_shift = 160 // (downsample + 1)
     stitching_dict = {
-        "session_id": str(specimen_id),
-        "memgb": 100,
-        "parallel": utils.get_code_ocean_cpu_limit(),
-        "dataset_xml": str(dataset_xml_path),
-        "do_phase_correlation": True,
-        "do_detection": False,
-        "do_registrations": False,
-        "phase_correlation_params": {
-            "downsample": downsample,
-            "min_correlation": 0.6,
-            "max_shift_in_x": max_shift,
-            "max_shift_in_y": max_shift,
-            "max_shift_in_z": max_shift,
+        "session_id": str(specimen_id), 
+        "memgb": 105, 
+        "parallel": 16, 
+        "dataset_xml":str(dataset_xml_path), 
+        "do_detection": True, 
+        "ip_detection_params":{
+            "downsample":int(downsample), 
+            "bead_choice":"manual", 
+            "sigma": float(ip_sigma),
+            "threshold": float(ip_threshold),
+            "find_minima": False,
+            "find_maxima":True
+            },
+        "do_registrations":True,
+        "ip_registrations_params": [
+        {
+            "transformation_choice": "translation",
+            "compare_views_choice": "overlapping_views",
+            "interest_point_inclusion_choice": "all_ips",
+            "fix_views_choice": "select_fixed",
+            "fixed_tile_ids": [
+                0
+            ],
+            "map_back_views_choice": "no_mapback",
+            "do_regularize": False,
+            "regularize_with_choice": "rigid"
         },
+	    {
+            "transformation_choice": "affine",
+            "compare_views_choice": "overlapping_views",
+            "interest_point_inclusion_choice": "all_ips",
+            "fix_views_choice": "select_fixed",
+            "fixed_tile_ids": [
+                0
+            ],
+            "map_back_views_choice": "no_mapback",
+            "do_regularize": True,
+            "regularize_with_choice": "affine"
+        }
+        ]
     }
     return stitching_dict
 
