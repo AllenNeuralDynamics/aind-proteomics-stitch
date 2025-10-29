@@ -40,6 +40,7 @@ RUN pip install -U --no-cache-dir \
     natsort==8.4.0 \
     matplotlib==3.9.2 \
     aind-data-schema==1.0.0 \ 
+    aind-exaspim-pipeline-utils==0.2.2 \
     boto3 \
     xmltodict
     

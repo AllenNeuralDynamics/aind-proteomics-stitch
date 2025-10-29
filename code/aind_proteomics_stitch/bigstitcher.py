@@ -132,13 +132,15 @@ def get_stitching_dict(
         "parallel": 16, 
         "dataset_xml":str(dataset_xml_path), 
         "do_detection": True, 
+        # "do_phase_correlation": 0,
         "ip_detection_params":{
             "downsample":int(downsample), 
             "bead_choice":"manual", 
             "sigma": float(ip_sigma),
             "threshold": float(ip_threshold),
             "find_minima": False,
-            "find_maxima":True
+            "find_maxima":True,
+            # "ip_limitation_choice": "brightest"
             },
         "do_registrations":True,
         "ip_registrations_params": [

@@ -83,5 +83,5 @@ def combine_all_xmls():
             print(f'Error combining xmls')
 
 if __name__ == "__main__":
-    # run_bigstitcher()
-    combine_all_xmls()
+    run_bigstitcher()
+    # combine_all_xmls()
