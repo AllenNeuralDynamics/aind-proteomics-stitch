@@ -9,7 +9,7 @@ conda activate "$CONDA_ENV_NAME"
 
 # git clone -b refactor-exaspim-utils https://github.com/AllenNeuralDynamics/aind-exaSPIM-pipeline-utils.git
 pip install aind-exaspim-pipeline-utils==0.2.2 \
-
+pip install boto3
 #git clone -b feat-phase-correlation https://github.com/AllenNeuralDynamics/aind-exaSPIM-pipeline-utils.git
 
 # pip install -e ./aind-exaSPIM-pipeline-utils
