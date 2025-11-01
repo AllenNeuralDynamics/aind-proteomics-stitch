@@ -1082,3 +1082,41 @@ def get_resolution(acquisition_config: dict) -> Tuple[float]:
     ), f"Resolution contains None!: X: {x}, y: {y}, z: {z}"
 
     return x, y, z
+
+
+def get_all_channels(acquisition_config: dict) -> List[str]:
+    """
+    Get all unique channel names from the acquisition.json metadata
+
+    Parameters
+    ----------
+    acquisition_config: dict
+        Acquisition metadata
+
+    Returns
+    -------
+    List[str]
+        List of unique channel names (wavelengths) found in the dataset
+    """
+    channels = set()
+    
+    try:
+        data_streams = acquisition_config.get("data_streams", [])
+        for stream in data_streams:
+            configurations = stream.get("configurations", [])
+            for config in configurations:
+                if config.get("object_type") == "Imaging config":
+                    images = config.get("images", [])
+                    for image in images:
+                        channel_name = image.get("channel_name")
+                        if channel_name:
+                            channels.add(str(channel_name))
+    except (AttributeError, KeyError) as e:
+        raise ValueError(
+            "acquisition_config structure is invalid or missing required fields"
+        ) from e
+    
+    if not channels:
+        raise ValueError("No channels found in acquisition.json")
+    
+    return sorted(list(channels))

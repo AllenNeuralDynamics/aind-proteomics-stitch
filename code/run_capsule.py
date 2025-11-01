@@ -43,7 +43,10 @@ def run():
     )
 
     voxel_resolution = utils.get_resolution(acquisition_dict)
-    stitching_channel = pipeline_config["pipeline_processing"]["stitching"]["channel"]
+    
+    # Get all channels from acquisition.json instead of just the stitching channel
+    all_channels = utils.get_all_channels(acquisition_dict)
+    print(f"Found {len(all_channels)} channels to process: {all_channels}")
 
     processed_data_description = utils.read_json_as_dict(required_input_elements[3])
     radial_parameters = utils.read_json_as_dict(required_input_elements[4])
@@ -55,18 +58,22 @@ def run():
         raise ValueError("Stitching requires S3 paths in Code Ocean at the moment.")
 
     path_to_data = f"s3://{bucket_name}/{processed_asset_name}/image_radial_correction"
-    bigstitcher.main(
-        path_to_data=path_to_data,
-        channel_wavelength=stitching_channel,
-        acquisition_path=required_input_elements[2],
-        voxel_resolution=voxel_resolution,
-        results_folder=results_folder,
-        proteomics_dataset_name=proteomics_dataset_name,
-        res_for_transforms=(0.76, 0.76, 3.4),
-        scale_for_transforms=4,
-        # If this is provided, res for
-        # transforms is ignored
-    )
+    
+    # Process each channel independently
+    for channel in all_channels:
+        print(f"Processing channel: {channel}")
+        bigstitcher.main(
+            path_to_data=path_to_data,
+            channel_wavelength=channel,
+            acquisition_path=required_input_elements[2],
+            voxel_resolution=voxel_resolution,
+            results_folder=results_folder,
+            proteomics_dataset_name=proteomics_dataset_name,
+            res_for_transforms=(0.76, 0.76, 3.4),
+            scale_for_transforms=4,
+            # If this is provided, res for
+            # transforms is ignored
+        )
 
 
 if __name__ == "__main__":
