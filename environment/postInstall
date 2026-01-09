@@ -7,7 +7,7 @@ CONDA_ENV_NAME="bigstitcher_env"
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "$CONDA_ENV_NAME"
 
-git clone -b refactor-exaspim-utils https://github.com/AllenNeuralDynamics/aind-exaSPIM-pipeline-utils.git
+git clone -b feat-phase-correlation-iterative-solver https://github.com/AllenNeuralDynamics/aind-exaSPIM-pipeline-utils.git
 #git clone -b feat-phase-correlation https://github.com/AllenNeuralDynamics/aind-exaSPIM-pipeline-utils.git
 
 pip install -e ./aind-exaSPIM-pipeline-utils
