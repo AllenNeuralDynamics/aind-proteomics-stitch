@@ -99,6 +99,43 @@ def get_data_config(
 
     return derivatives_dict, proteomics_dataset, acquisition_dict
 
+def get_stitching_dict_proteomics(
+    specimen_id: str, dataset_xml_path: str, downsample: Optional[int] = 2
+) -> dict:
+    """
+    A function that writes a stitching dictioonary that will be used for
+    creating a json file that gives parmaters to bigstitcher sittching run
+
+    Parameters
+    ----------
+    specimen_id: str
+        Specimen ID
+    dataset_xml_path: str
+        Path where the xml is located
+    downsample: Optional[int] = 2
+        Image multiscale used for stitching
+
+    Returns
+    -------
+    dict
+        Dictionary with the stitching parameters
+        used for bigstitcher
+    """
+    # assert pathlib.Path(dataset_xml_path).exists()
+
+    stitching_dict = {
+        "session_id": str(specimen_id),
+        "memgb": 100,
+        "parallel": utils.get_code_ocean_cpu_limit(),
+        "dataset_xml": str(dataset_xml_path),
+        "do_phase_correlation": True,
+        "do_detection": False,
+        "do_registrations": False,
+        "phase_correlation_params": {
+            "downsample": downsample,
+        },
+    }
+    return stitching_dict
 
 def get_stitching_dict(
     specimen_id: str, dataset_xml_path: str, downsample: Optional[int] = 2
@@ -229,11 +266,21 @@ def main(
     scale_for_transforms = int(scale_for_transforms)
 
     # print(f"Voxel resolution: {voxel_resolution} - Estimating transforms in res: {res_for_transforms} - Scale: {scale_for_transforms}")
-    proteomics_stitching_params = get_stitching_dict(
+    project_name = utils.get_project_name()
+    if project_name == "PLACE": 
+        #use different parameters
+        proteomics_stitching_params = get_stitching_dict_proteomics(
         specimen_id=proteomics_dataset_name,
         dataset_xml_path=output_big_stitcher_xml,
         downsample=scale_for_transforms,
-    )
+        )
+    else: 
+
+        proteomics_stitching_params = get_stitching_dict(
+            specimen_id=proteomics_dataset_name,
+            dataset_xml_path=output_big_stitcher_xml,
+            downsample=scale_for_transforms,
+        )
     end_time = time()
 
     output_big_stitcher_json = f"{results_folder}/{proteomics_dataset_name}_stitch_channel_{channel_wavelength}_params.json"
