@@ -277,7 +277,7 @@ def main(
     # print(f"Voxel resolution: {voxel_resolution} - Estimating transforms in res: {res_for_transforms} - Scale: {scale_for_transforms}")
     project_name = utils.get_project_name()
     if project_name == "PLACE": 
-        print(f'Project name {project_name}: generating proteomics stitching dict...')
+        # print(f'Project name {project_name}: generating proteomics stitching dict...')
         #use different parameters
         proteomics_stitching_params = get_stitching_dict_proteomics(
         specimen_id=proteomics_dataset_name,
@@ -285,7 +285,7 @@ def main(
         downsample=scale_for_transforms,
         )
     else: 
-        print(f'Project name {project_name}: generating HCR stitching dict...')
+        # print(f'Project name {project_name}: generating HCR stitching dict...')
 
         proteomics_stitching_params = get_stitching_dict(
             specimen_id=proteomics_dataset_name,

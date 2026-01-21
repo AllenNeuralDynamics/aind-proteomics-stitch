@@ -13,6 +13,7 @@ import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
+import glob
 from typing import Any, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -46,7 +47,7 @@ def get_project_name() ->str:
     RuntimeError
         If error occurs while loading or parsing the JSON configuration
     """
-    base_data_dir = pathlib.Path("/data")
+    base_data_dir = Path("/data")
     
     # Use glob to search for data_description.json in all possible locations
     search_patterns = [
@@ -60,9 +61,9 @@ def get_project_name() ->str:
     # Find the first existing file
     json_file_path = None
     for json_path in search_patterns:
-        if pathlib.Path(json_path).exists():
+        if Path(json_path).exists():
             json_file_path = json_path
-            logger.info(f"Found data_description.json at: {json_file_path}")
+            # print(f"Found data_description.json at: {json_file_path}")
             break
     
     if json_file_path is None:
@@ -70,7 +71,7 @@ def get_project_name() ->str:
             f"No data_description.json file found in {base_data_dir} or any of its subdirectories"
         )
     
-    logger.info(f"Loading configuration from {json_file_path}")
+    # print(f"Loading configuration from {json_file_path}")
     
     try:
         with open(json_file_path, 'r') as f:
@@ -78,7 +79,7 @@ def get_project_name() ->str:
             project_name = config.get('project_name')
             if not project_name:
                 raise ValueError("'project_name' field not found in data_description.json")
-            logger.info(f"Loaded project_name : {project_name}")
+            # print(f"Loaded project_name : {project_name}")
             return project_name
     except Exception as e:
         raise RuntimeError(f"Error loading data_description.json: {str(e)}")
