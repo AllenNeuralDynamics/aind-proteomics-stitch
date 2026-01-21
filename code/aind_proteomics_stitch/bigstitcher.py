@@ -100,7 +100,12 @@ def get_data_config(
     return derivatives_dict, proteomics_dataset, acquisition_dict
 
 def get_stitching_dict_proteomics(
-    specimen_id: str, dataset_xml_path: str, downsample: Optional[int] = 2
+    specimen_id: str, 
+    dataset_xml_path: str,
+    downsample: Optional[int] = 2, 
+    relative_optimization_threshold: float = 2.5, 
+    absolute_optimization_threshold: float = 3.5, 
+    max_error: int = 3
 ) -> dict:
     """
     A function that writes a stitching dictioonary that will be used for
@@ -133,6 +138,9 @@ def get_stitching_dict_proteomics(
         "do_registrations": False,
         "phase_correlation_params": {
             "downsample": downsample,
+            "relative_optimization_threshold": relative_optimization_threshold, 
+            "absolute_optimization_threshold": absolute_optimization_threshold, 
+            "max_error": max_error
         },
     }
     return stitching_dict
