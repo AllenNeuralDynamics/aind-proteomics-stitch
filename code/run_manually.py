@@ -43,11 +43,12 @@ def run_offpipeline():
     # # Printing to get output on batch script
     # print(output_big_stitcher_json)
 
-def run_bigstitcher(): 
-        processed_asset_name = f'HCR_807074_2025-08-26_15-45-00_processed_2025-10-02_22-49-01'
+
+def run_HCR_bigstitcher(): 
+        processed_asset_name = f'HCR_000000-s43_2025-07-24_13-00-00_processed_2026-01-20_18-33-48'
         stitching_channel=405
         path_to_data = f"s3://aind-open-data/{processed_asset_name}/image_radial_correction"
-        voxel_resolution = (1, 0.3880046677791278, 0.3880046677791278)
+        voxel_resolution = (1, 0.2466335423895654, 0.2466335423895654)
         results_folder = Path('/results')
         acquisition_path = f"/data/{processed_asset_name}/acquisition.json"
 
@@ -58,8 +59,29 @@ def run_bigstitcher():
         voxel_resolution=voxel_resolution,
         results_folder=results_folder,
         proteomics_dataset_name=processed_asset_name,
-        res_for_transforms=(0.76, 0.76, 3.4),
-        scale_for_transforms=2,
+        # res_for_transforms=(0.76, 0.76, 3.4),
+        scale_for_transforms=4,
+        # If this is provided, res for
+        # transforms is ignored
+    )
+
+def run_bigstitcher(): 
+        processed_asset_name = f'HCR_823476-s5-ls2_2025-12-24_00-00-00_processed_2026-01-03_01-30-29'
+        stitching_channel=488
+        path_to_data = f"s3://aind-open-data/{processed_asset_name}/image_radial_correction"
+        voxel_resolution = (0.459, 0.0920179382864407, 0.0920179382864407)
+        results_folder = Path('/results')
+        acquisition_path = f"/data/{processed_asset_name}/acquisition.json"
+
+        bigstitcher.main(
+        path_to_data=path_to_data,
+        channel_wavelength=stitching_channel,
+        acquisition_path=acquisition_path,
+        voxel_resolution=voxel_resolution,
+        results_folder=results_folder,
+        proteomics_dataset_name=processed_asset_name,
+        # res_for_transforms=(0.76, 0.76, 3.4),
+        scale_for_transforms=4,
         # If this is provided, res for
         # transforms is ignored
     )
@@ -83,5 +105,6 @@ def combine_all_xmls():
             print(f'Error combining xmls')
 
 if __name__ == "__main__":
-    # run_bigstitcher()
-    combine_all_xmls()
+    run_bigstitcher()
+    # run_HCR_bigstitcher()
+    # combine_all_xmls()
