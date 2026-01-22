@@ -20,6 +20,7 @@ import psutil
 from aind_data_schema.base import AindCoreModel
 from aind_data_schema.core.processing import (DataProcess, PipelineProcess,
                                               Processing)
+from packaging import version
 
 # IO types
 PathLike = Union[str, Path]
@@ -978,9 +979,51 @@ def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
     return missing_inputs
 
 
-def get_resolution(acquisition_config: dict) -> Tuple[float]:
+def get_resolution_schema_2(acquisition_config: dict) -> Tuple[float]:
     """
     Get the image resolution from the acquisition.json metadata
+    in the version 2.0
+
+    Parameters
+    ----------
+    acquisition_config: dict
+        Acquisition metadata
+
+    Returns
+    -------
+    Tuple[float]
+        Tuple with the floats for image resolution
+    """
+
+    # Grabbing a tile with metadata from acquisition - we assume all
+    # dataset was acquired with the same resolution
+    try:
+        data_stream = acquisition_config.get("data_streams", [])[0]
+        configuration = data_stream.get("configurations", [])[0]
+        image = configuration.get("images", [])[0]
+        image_to_acquisition_transform = image["image_to_acquisition_transform"]
+    except (IndexError, AttributeError, KeyError) as e:
+        raise ValueError(
+            "acquisition_config structure is invalid or missing " "required fields"
+        ) from e
+
+    scale_transform = [
+        x["scale"]
+        for x in image_to_acquisition_transform
+        if x["object_type"] == "Scale"
+    ][0]
+
+    x = float(scale_transform[0])
+    y = float(scale_transform[1])
+    z = float(scale_transform[2])
+
+    return z, y, x
+
+
+def get_resolution_schema_1(acquisition_config: dict) -> Tuple[float]:
+    """
+    Get the image resolution from the acquisition.json metadata
+    in the version 1.0
 
     Parameters
     ----------
@@ -1004,5 +1047,38 @@ def get_resolution(acquisition_config: dict) -> Tuple[float]:
     x = float(scale_transform[0])
     y = float(scale_transform[1])
     z = float(scale_transform[2])
+
+    return x, y, z
+
+
+def get_resolution(acquisition_config: dict) -> Tuple[float]:
+    """
+    Get the image resolution from the acquisition.json metadata
+
+    Parameters
+    ----------
+    acquisition_config: dict
+        Acquisition metadata
+
+    Returns
+    -------
+    Tuple[float]
+        Tuple with the floats for image resolution
+    """
+
+    x, y, z = None, None, None
+
+    schema_version = acquisition_config.get("schema_version")
+
+    if version.parse(schema_version) >= version.parse("2.0.0"):
+        x, y, z = get_resolution_schema_2(acquisition_config=acquisition_config)
+
+    else:
+        x, y, z = get_resolution_schema_2(acquisition_config=acquisition_config)
+
+    # Checking resolution values
+    assert not any(
+        val is None for val in [x, y, z]
+    ), f"Resolution contains None!: X: {x}, y: {y}, z: {z}"
 
     return x, y, z

@@ -12,9 +12,8 @@ from typing import List, Optional, Tuple
 
 from aind_data_schema.core.processing import DataProcess, ProcessName
 
-from . import (__maintainers__, __pipeline_version__, __version__,
-               bigstitcher_utilities)
-from .utils import utils
+from . import __maintainers__, __pipeline_version__, __version__
+from .utils import create_nominal_positions, utils
 
 
 def validate_capsule_inputs(input_elements: List[str]) -> List[str]:
@@ -125,7 +124,7 @@ def get_stitching_dict(
     """
     # assert pathlib.Path(dataset_xml_path).exists()
 
-    max_shift = 100 // (downsample + 1)
+    max_shift = 160 // (downsample + 1)
     stitching_dict = {
         "session_id": str(specimen_id),
         "memgb": 100,
@@ -180,9 +179,8 @@ def get_estimated_downsample(
 def main(
     path_to_data,
     channel_wavelength,
-    path_to_tile_metadata,
+    acquisition_path,
     voxel_resolution,
-    output_json_file,
     results_folder,
     proteomics_dataset_name,
     res_for_transforms=(0.19, 0.19, 0.85),
@@ -209,35 +207,19 @@ def main(
     metadata_folder = results_folder.joinpath("metadata")
     utils.create_folder(str(metadata_folder))
 
-    tile_metadata = utils.read_json_as_dict(path_to_tile_metadata)
-    channel_metadata = []
-
-    for t in tile_metadata:
-        tilename = Path(t["file"]).stem.replace(full_extension, "")
-        t["file"] = f"{tilename}{full_extension}"
-        absolute_tile_path = f"{path_to_data}/{t['file']}"
-        # print(absolute_tile_path)
-        # if not absolute_tile_path.exists():
-        #     raise ValueError(f"Tile path {absolute_tile_path} does not exist!")
-
-        if int(channel_wavelength) == int(t["channel_wavelength"]):
-            channel_metadata.append(t)
-
-    utils.save_dict_as_json(filename=output_json_file, dictionary=channel_metadata)
-
-    tree = bigstitcher_utilities.parse_json(
-        json_path=output_json_file,
-        s3_data_path=str(path_to_data),
-        data_path_type="relative",
-        microns=True,
-    )
-    zarr_path_xml = tree.find("SequenceDescription").find("ImageLoader").find("zarr")
-    if not zarr_path_xml.text.startswith("s3://"):
-        zarr_path_xml.text = os.path.abspath(zarr_path_xml.text)
-
     output_big_stitcher_xml = f"{results_folder}/{proteomics_dataset_name}_stitching_channel_{channel_wavelength}.xml"
 
-    bigstitcher_utilities.write_xml(tree, output_big_stitcher_xml)
+    # Creating XML
+    create_nominal_positions.create_xml_from_acquisition(
+        acquisition_json_path=acquisition_path,
+        output_xml_path=output_big_stitcher_xml,
+        zarr_base_path=path_to_data,
+        stitching_channel=channel_wavelength,
+    )
+
+    # zarr_path_xml = tree.find("SequenceDescription").find("ImageLoader").find("zarr")
+    # if not zarr_path_xml.text.startswith("s3://"):
+    #     zarr_path_xml.text = os.path.abspath(zarr_path_xml.text)
 
     if scale_for_transforms is None:
         scale_for_transforms = get_estimated_downsample(
@@ -279,6 +261,8 @@ def main(
         processor_full_name=__maintainers__[0],
         pipeline_version=__pipeline_version__,
     )
+    
+
 
     with open(output_big_stitcher_json, "w") as f:
         json.dump(proteomics_stitching_params, f, indent=4)

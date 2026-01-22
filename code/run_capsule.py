@@ -22,7 +22,6 @@ def run():
     # will be in the data folder
     required_input_elements = [
         f"{data_folder}/processing_manifest.json",
-        f"{data_folder}/all_channel_tile_metadata.json",
         f"{data_folder}/data_description.json",
         f"{data_folder}/acquisition.json",
         f"{data_folder}/processed/data_description.json",
@@ -46,15 +45,8 @@ def run():
     voxel_resolution = utils.get_resolution(acquisition_dict)
     stitching_channel = pipeline_config["pipeline_processing"]["stitching"]["channel"]
 
-    output_json_file = results_folder.joinpath(
-        f"{proteomics_dataset_name}_tile_metadata.json"
-    )
-
-    # Computing image transformations with bigtstitcher
-    path_to_tile_metadata = required_input_elements[1]
-
-    processed_data_description = utils.read_json_as_dict(required_input_elements[4])
-    radial_parameters = utils.read_json_as_dict(required_input_elements[5])
+    processed_data_description = utils.read_json_as_dict(required_input_elements[3])
+    radial_parameters = utils.read_json_as_dict(required_input_elements[4])
 
     processed_asset_name = processed_data_description.get("name", None)
     bucket_name = radial_parameters.get("bucket_name", None)
@@ -66,13 +58,12 @@ def run():
     bigstitcher.main(
         path_to_data=path_to_data,
         channel_wavelength=stitching_channel,
-        path_to_tile_metadata=path_to_tile_metadata,
+        acquisition_path=required_input_elements[2],
         voxel_resolution=voxel_resolution,
-        output_json_file=output_json_file,
         results_folder=results_folder,
         proteomics_dataset_name=proteomics_dataset_name,
         res_for_transforms=(0.76, 0.76, 3.4),
-        scale_for_transforms=2,
+        scale_for_transforms=4,
         # If this is provided, res for
         # transforms is ignored
     )

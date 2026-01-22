@@ -39,7 +39,10 @@ RUN pip install -U --no-cache-dir \
     zarr==2.16.1 \
     natsort==8.4.0 \
     matplotlib==3.9.2 \
-    aind-data-schema==1.0.0
+    aind-data-schema==1.0.0 \ 
+    boto3 \
+    xmltodict
+    
 
 # --- Install VS Code Server (code-server) ---
 # Downloads and extracts code-server v4.9.0
@@ -56,6 +59,6 @@ SHELL ["/bin/bash", "-c"]
 # --- Create Conda Env: bigstitcher_env ---
 RUN conda create -y -n bigstitcher_env python=3.9
 
-# --- Run Custom Post-Install Script ---
-COPY postInstall /postInstall
-RUN chmod +x /postInstall && /postInstall
+COPY postInstall /
+RUN --mount=type=secret,id=secrets . /run/secrets/secrets \
+    && /postInstall
