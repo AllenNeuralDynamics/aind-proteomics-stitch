@@ -104,7 +104,7 @@ def get_stitching_dict_proteomics(
     dataset_xml_path: str,
     downsample: Optional[int] = 2, 
     relative_optimization_threshold: float = 2.5, 
-    absolute_optimization_threshold: float = 3.5, 
+    absolute_optimization_threshold: float = 2.5, 
     max_error: int = 3
 ) -> dict:
     """
