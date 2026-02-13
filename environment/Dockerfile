@@ -23,7 +23,7 @@ RUN conda install -y -c conda-forge -c bioconda \
     conda clean -ya
 
 # --- Create Conda Env: proteomics_stitch ---
-RUN conda create -y -n proteomics_stitch python=3.9
+RUN conda create -y -n proteomics_stitch python=3.9 
 
 # --- Activate Environment and Install Python Packages ---
 SHELL ["conda", "run", "-n", "proteomics_stitch", "/bin/bash", "-c"]
